@@ -15,6 +15,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dlpoly = [
+    "aiida-dlpoly",
+]
 test = [
     "pytest",
 ]
