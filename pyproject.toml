@@ -14,5 +14,10 @@ dependencies = [
     "aiida-core",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
 [project.scripts]
 aiida-mcp = "aiida_mcp.server:main"
