@@ -2,7 +2,7 @@ import argparse
 
 from mcp.server.mcpserver import MCPServer
 
-from aiida_mcp import connection, nodes, processes
+from aiida_mcp import connection, nodes, plugins, processes
 
 mcp = MCPServer("aiida-mcp")
 
@@ -82,6 +82,9 @@ def query_nodes(
     limit: maximum number of nodes to return (capped at 200).
     """
     return nodes.query_nodes(node_type=node_type, group=group, extra_key=extra_key, limit=limit)
+
+
+plugins.register_all(mcp)
 
 
 def main() -> None:
