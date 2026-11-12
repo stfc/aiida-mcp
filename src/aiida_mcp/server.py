@@ -1,8 +1,10 @@
+"""MCP server entry point and tool registration."""
+
 import argparse
 
 from mcp.server.mcpserver import MCPServer
 
-from aiida_mcp import connection, nodes, plugins, processes
+from aiida_mcp import connection, nodes, plugins, processes, profiles
 
 mcp = MCPServer("aiida-mcp")
 
@@ -78,7 +80,8 @@ def query_nodes(
 ) -> dict:
     """Query nodes, newest first.
 
-    node_type: node type prefix, e.g. data.core.int or process.calculation. A trailing % is optional.
+    node_type: node type prefix, e.g. data.core.int or process.calculation. A trailing %
+        is optional.
     group: group label to restrict results to.
     extra_key: only nodes that have this extras key.
     limit: maximum number of nodes to return (capped at 200).
@@ -101,10 +104,70 @@ def get_node_content(pk: int) -> dict:
     return nodes.get_node_content(pk)
 
 
+@mcp.tool()
+def list_profiles() -> dict:
+    """List all configured AiiDA profiles, showing the current and default ones."""
+    return profiles.list_profiles()
+
+
+# create_profile and switch_profile are temporarily disabled. The underlying
+# profiles.create_profile / profiles.switch_profile logic and tests are unchanged;
+# re-enable by uncommenting these two tool registrations.
+#
+# @mcp.tool()
+# def create_profile(
+#     name: str,
+#     email: str | None = None,
+#     storage_backend: str = profiles.DEFAULT_STORAGE_BACKEND,
+#     storage_config: dict | None = None,
+#     broker: str = "none",
+#     first_name: str | None = None,
+#     last_name: str | None = None,
+#     institution: str | None = None,
+#     set_as_default: bool = False,
+# ) -> dict:
+#     """Create a new AiiDA profile and initialise its storage.
+#
+#     name: name for the new profile.
+#     email: default user's email. Required unless the storage backend is read-only.
+#     storage_backend: storage entry point, e.g. core.sqlite_dos (default) or
+#         core.psql_dos.
+#     storage_config: backend-specific configuration, e.g. {"filepath": "/path/to/dir"}
+#         for core.sqlite_dos, or database_username/database_password/database_name/
+#         repository_uri for core.psql_dos. Unset fields fall back to the defaults.
+#     broker: message broker to configure: none (default), core.rabbitmq or core.zeromq.
+#     first_name, last_name, institution: optional details for the default user.
+#     set_as_default: make this the default profile for future server starts.
+#
+#     This does not switch the server's active profile; call switch_profile for that.
+#     """
+#     return profiles.create_profile(
+#         name=name,
+#         email=email,
+#         storage_backend=storage_backend,
+#         storage_config=storage_config,
+#         broker=broker,
+#         first_name=first_name,
+#         last_name=last_name,
+#         institution=institution,
+#         set_as_default=set_as_default,
+#     )
+#
+#
+# @mcp.tool()
+# def switch_profile(name: str) -> dict:
+#     """Switch the server's active AiiDA profile and initialise its storage.
+#
+#     name: name of an existing profile, as shown by list_profiles.
+#     """
+#     return profiles.switch_profile(name)
+
+
 plugins.register_all(mcp)
 
 
 def main() -> None:
+    """Parse command-line arguments and run the MCP server."""
     parser = argparse.ArgumentParser(description="AiiDA MCP server")
     parser.add_argument(
         "--transport",

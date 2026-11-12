@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It lets an MCP client (such as an AI assistant) inspect an AiiDA database and submit DL_POLY calculations.
 
-> **Warning:** the server has a write tool (`submit_dlpoly_job`) that is always on. It creates nodes in your AiiDA profile and starts jobs on the daemon. Point it at a profile you are happy to write to.
+> **Warning:** the server has write tools that are always on: `submit_dlpoly_job` creates nodes and starts jobs on the daemon, `create_profile` creates new AiiDA profiles and initialises their storage, and `switch_profile` changes the profile every other tool call uses. Point it at a profile you are happy to write to.
 
 ## Contents
 
@@ -13,6 +13,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - [Connecting a client](#connecting-a-client)
 - [Tools](#tools)
 - [Submitting a DL_POLY job](#submitting-a-dl_poly-job)
+- [Managing profiles](#managing-profiles)
 - [Development and tests](#development-and-tests)
 - [Troubleshooting](#troubleshooting)
 
@@ -164,6 +165,8 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 | `list_computers` | Lists configured computers. |
 | `list_codes` | Lists codes, optionally for one `computer`. |
 | `query_nodes` | Finds nodes by `node_type` prefix, `group` label and `extra_key`. |
+| `get_node_content` | Returns the content of a node: file content for `SinglefileData`, the value for `Int`/`Float`. |
+| `list_profiles` | Lists all configured AiiDA profiles, showing the current and default ones. |
 | `describe_dlpoly_calcjob` | Describes the DL_POLY calcjob: inputs, outputs, exit codes, default options. |
 
 Notes:
@@ -171,6 +174,7 @@ Notes:
 - List tools take a `limit`. The default is 20 (100 for logs), the maximum is 200 (1000 for logs), and a value below 1 is an error.
 - `list_processes` states are `created`, `waiting`, `running`, `finished`, `excepted` and `killed`.
 - If the daemon is stopped, `get_status` does not check the broker, because connecting would block.
+- `get_node_content` only supports `SinglefileData`, `Int` and `Float` nodes so far; other node types return an error naming the supported ones. File content over 1 MB is truncated, and content that cannot be decoded as UTF-8 text is returned base64-encoded.
 - Errors the caller can fix, such as an unknown state or a missing PK, are returned as short messages.
 
 ### Write
@@ -178,6 +182,8 @@ Notes:
 | Tool | What it does |
 |------|--------------|
 | `submit_dlpoly_job` | Builds and submits a DL_POLY calculation to the daemon. |
+| `create_profile` *(currently disabled)* | Creates a new AiiDA profile and initialises its storage. See [Managing profiles](#managing-profiles). |
+| `switch_profile` *(currently disabled)* | Switches the server's active AiiDA profile. See [Managing profiles](#managing-profiles). |
 
 ## Submitting a DL_POLY job
 
@@ -221,6 +227,40 @@ Behaviour:
 
 A typical session: call `get_status`, call `list_codes` to find the code, call `submit_dlpoly_job`, then poll `get_process` until `state` is `finished` and check `exit_status`. An `exit_status` of 0 means success. Other values are listed by `describe_dlpoly_calcjob`.
 
+## Managing profiles
+
+> `create_profile` and `switch_profile` are currently disabled (commented out in `server.py`). `list_profiles` is still available.
+
+The server always runs against one loaded profile (see [Setting up AiiDA](#setting-up-aiida)), but it can also create and switch between profiles at runtime:
+
+| Argument | Meaning |
+|----------|---------|
+| `name` | Name for the new profile. |
+| `email` | Default user's email. Required unless `storage_backend` is read-only. |
+| `storage_backend` | Storage entry point. Defaults to `core.sqlite_dos`, which needs no external services. `core.psql_dos` (PostgreSQL) is also available. |
+| `storage_config` | Backend-specific configuration, e.g. `{"filepath": "/path/to/dir"}` for `core.sqlite_dos`, or `database_username`/`database_password`/`database_name`/`repository_uri` for `core.psql_dos`. Unset fields fall back to the backend's defaults. |
+| `broker` | Message broker: `none` (default), `core.rabbitmq` or `core.zeromq`. |
+| `first_name`, `last_name`, `institution` | Optional details for the default user. |
+| `set_as_default` | Makes the new profile the on-disk default, used the next time the server starts. |
+
+Example:
+
+```json
+{
+  "name": "scratch",
+  "email": "me@example.com",
+  "storage_config": {"filepath": "/data/aiida-scratch"}
+}
+```
+
+`create_profile` only creates and initialises the profile; it does not change which profile the running server uses. Call `switch_profile` with the profile's `name` for that. `list_profiles` shows what is configured, which one is the default, and which one the server currently has loaded.
+
+Behaviour:
+
+- `create_profile` fails if a profile with that `name` already exists, if `storage_backend` or `broker` is not recognised, or if `email` is missing for a non-read-only backend. Nothing is left behind on failure.
+- `switch_profile` fails if `name` does not match a configured profile. On success it loads the profile and initialises its storage, so the next call may take a moment.
+- Switching profiles affects every subsequent tool call on the server, including from other clients connected to the same server process.
+
 ## Development and tests
 
 ```bash
@@ -238,6 +278,7 @@ src/aiida_mcp/
   connection.py    profile loading and status
   processes.py     process tools
   nodes.py         computer, code and node tools
+  profiles.py      profile listing, creation and switching
   limits.py        shared limit handling
   plugins/         plugin-specific calcjobs
     __init__.py    list of plugin modules and registration

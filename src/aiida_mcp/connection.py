@@ -1,3 +1,5 @@
+"""AiiDA profile loading and status helpers."""
+
 import threading
 from typing import Any
 
@@ -9,8 +11,13 @@ from aiida.manage.configuration import get_profile
 _lock = threading.Lock()
 
 
+def lock() -> threading.Lock:
+    """Return the lock guarding profile load and switch operations."""
+    return _lock
+
+
 def ensure_profile() -> None:
-    """Load the default AiiDA profile and initialise its storage once, safe across threads."""
+    """Load the default AiiDA profile and initialise its storage once, thread-safely."""
     with _lock:
         if get_profile() is None:
             load_profile()
@@ -35,7 +42,9 @@ def get_status() -> dict[str, Any]:
     }
 
     if not daemon_running:
-        status["broker_note"] = "Not checked: the daemon is not running, and connecting would block."
+        status["broker_note"] = (
+            "Not checked: the daemon is not running, and connecting would block."
+        )
         return status
 
     try:

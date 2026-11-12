@@ -1,3 +1,5 @@
+"""Tests for the MCP server's tool registration and error handling."""
+
 import asyncio
 
 import pytest
@@ -7,6 +9,7 @@ from aiida_mcp import server
 
 
 def test_all_tools_are_registered():
+    """Every tool defined in server.py is exposed to MCP clients."""
     names = {tool.name for tool in asyncio.run(server.mcp.list_tools())}
     assert names == {
         "ping",
@@ -18,12 +21,14 @@ def test_all_tools_are_registered():
         "list_codes",
         "query_nodes",
         "get_node_content",
+        "list_profiles",
         "describe_dlpoly_calcjob",
         "submit_dlpoly_job",
     }
 
 
 def test_tool_error_message_reaches_client():
+    """A ToolError's message reaches the client without a traceback."""
     with pytest.raises(ToolError) as excinfo:
         asyncio.run(server.mcp.call_tool("get_process", {"pk": 999999}))
     assert "No node with pk 999999" in str(excinfo.value)
