@@ -4,7 +4,7 @@ import argparse
 
 from mcp.server.mcpserver import MCPServer
 
-from aiida_mcp import connection, nodes, plugins, processes, profiles
+from aiida_mcp import aiidalab, connection, nodes, plugins, processes, profiles
 
 mcp = MCPServer("aiida-mcp")
 
@@ -102,6 +102,16 @@ def get_node_content(pk: int) -> dict:
     base64-encoded), Int and Float (returned as their numeric value).
     """
     return nodes.get_node_content(pk)
+
+
+@mcp.tool()
+def get_aiidalab_status() -> dict:
+    """Report whether an AiiDAlab Jupyter server is running locally, and its URL.
+
+    Looks for a running Jupyter server whose working directory looks like an
+    AiiDAlab home directory. The returned URL includes the access token.
+    """
+    return aiidalab.get_status()
 
 
 @mcp.tool()

@@ -21,6 +21,7 @@ def test_all_tools_are_registered():
         "list_codes",
         "query_nodes",
         "get_node_content",
+        "get_aiidalab_status",
         "list_profiles",
         "describe_dlpoly_calcjob",
         "submit_dlpoly_job",

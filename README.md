@@ -14,6 +14,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - [Tools](#tools)
 - [Submitting a DL_POLY job](#submitting-a-dl_poly-job)
 - [Managing profiles](#managing-profiles)
+- [Detecting AiiDAlab](#detecting-aiidalab)
 - [Development and tests](#development-and-tests)
 - [Troubleshooting](#troubleshooting)
 
@@ -22,6 +23,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - Python 3.10 or newer. The project is developed and tested on Python 3.14 only.
 - `aiida-core` and `mcp`, which are installed as dependencies.
 - For DL_POLY jobs: a compiled DL_POLY executable and the optional `aiida-dlpoly` plugin.
+- For AiiDAlab detection: the optional `jupyter-server` dependency (already present if installed alongside AiiDAlab itself).
 
 You do not need PostgreSQL or RabbitMQ. The setup below uses SQLite and the ZeroMQ broker that AiiDA includes.
 
@@ -40,9 +42,10 @@ pip install -e .
 Optional extras:
 
 ```bash
-pip install -e ".[dlpoly]"        # DL_POLY tools (installs aiida-dlpoly)
-pip install -e ".[test]"          # pytest, for running the tests
-pip install -e ".[dlpoly,test]"   # both
+pip install -e ".[dlpoly]"          # DL_POLY tools (installs aiida-dlpoly)
+pip install -e ".[aiidalab]"        # AiiDAlab detection (installs jupyter-server)
+pip install -e ".[test]"            # pytest, for running the tests
+pip install -e ".[dlpoly,aiidalab,test]"  # all of the above
 ```
 
 Check the install:
@@ -167,6 +170,7 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 | `query_nodes` | Finds nodes by `node_type` prefix, `group` label and `extra_key`. |
 | `get_node_content` | Returns the content of a node: file content for `SinglefileData`, the value for `Int`/`Float`. |
 | `list_profiles` | Lists all configured AiiDA profiles, showing the current and default ones. |
+| `get_aiidalab_status` | Reports whether an AiiDAlab server is running locally, and its URL. See [Detecting AiiDAlab](#detecting-aiidalab). |
 | `describe_dlpoly_calcjob` | Describes the DL_POLY calcjob: inputs, outputs, exit codes, default options. |
 
 Notes:
@@ -261,6 +265,22 @@ Behaviour:
 - `switch_profile` fails if `name` does not match a configured profile. On success it loads the profile and initialises its storage, so the next call may take a moment.
 - Switching profiles affects every subsequent tool call on the server, including from other clients connected to the same server process.
 
+## Detecting AiiDAlab
+
+`get_aiidalab_status` is meant for the common setup where an AiiDAlab container's startup script launches the MCP server alongside the default Jupyter notebook server, as the same user and in the same Python environment. An MCP client on your local machine can then ask the container "is AiiDAlab up, and what's its URL".
+
+It uses `jupyter_server.serverapp.list_running_servers()`, the same mechanism behind `jupyter server list`, to find Jupyter servers running in that environment. Since it shares the environment with AiiDAlab, this requires no special handling for differing users, home directories, or installed packages.
+
+Requires the `aiidalab` extra (`pip install -e ".[aiidalab]"`), though in the container deployment described above `jupyter-server` is already installed as part of AiiDAlab itself. Without it, the tool reports `running: false` with an explanatory error instead of failing.
+
+Possible results:
+
+- No running server found at all: `{"running": false}`.
+- A server whose working directory mentions `aiidalab`, or the sole running server if none do (an AiiDAlab container normally runs only one Jupyter server): `{"running": true, "url": "...", "pid": ..., "root_dir": "...", "version": "..."}`. The URL includes the access token, so it can be opened directly in a browser.
+- Several running servers and none clearly AiiDAlab: `{"running": true, "ambiguous": true, "servers": [...]}`, listing every one so the caller can pick the right one (e.g. by `root_dir` or `pid`).
+
+This only detects a server running in the same Python environment as the MCP server. It will not see an AiiDAlab instance running in a different container or on a remote machine.
+
 ## Development and tests
 
 ```bash
@@ -279,6 +299,7 @@ src/aiida_mcp/
   processes.py     process tools
   nodes.py         computer, code and node tools
   profiles.py      profile listing, creation and switching
+  aiidalab.py      AiiDAlab Jupyter server detection
   limits.py        shared limit handling
   plugins/         plugin-specific calcjobs
     __init__.py    list of plugin modules and registration
