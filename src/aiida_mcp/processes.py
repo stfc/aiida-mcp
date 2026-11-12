@@ -1,3 +1,5 @@
+"""Process node inspection tools."""
+
 from datetime import datetime
 from typing import Any
 
@@ -39,7 +41,8 @@ def list_processes(
     connection.ensure_profile()
 
     if state is not None and state not in PROCESS_STATES:
-        raise ToolError(f"Unknown state {state!r}. Choose from: {', '.join(PROCESS_STATES)}")
+        choices = ", ".join(PROCESS_STATES)
+        raise ToolError(f"Unknown state {state!r}. Choose from: {choices}")
 
     filters: dict[str, Any] = {}
     if state is not None:
@@ -47,7 +50,8 @@ def list_processes(
     if label is not None:
         filters["attributes.process_label"] = label
     if created_after is not None:
-        filters["ctime"] = {">=": timezone.make_aware(datetime.fromisoformat(created_after))}
+        since = timezone.make_aware(datetime.fromisoformat(created_after))
+        filters["ctime"] = {">=": since}
 
     limit = clamp_limit(limit, DEFAULT_LIMIT, MAX_LIMIT)
 

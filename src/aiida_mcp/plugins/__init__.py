@@ -1,3 +1,5 @@
+"""Plugin-specific calcjob tools, registered only if their entry point is installed."""
+
 import importlib
 
 from mcp.server.mcpserver import MCPServer
@@ -7,7 +9,7 @@ PLUGIN_MODULES = ("aiida_mcp.plugins.dlpoly",)
 
 
 def register_all(mcp: MCPServer) -> list[str]:
-    """Register the tools of every installed plugin and return the modules that were registered."""
+    """Register the tools of every installed plugin and return the ones registered."""
     registered = []
     for name in PLUGIN_MODULES:
         module = importlib.import_module(name)

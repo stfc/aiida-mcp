@@ -12,3 +12,6 @@ dist/
 env/
 .venv/
 venv/
+
+# Formatting tools
+.ruff_cache/

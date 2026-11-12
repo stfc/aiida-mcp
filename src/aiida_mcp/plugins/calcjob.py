@@ -1,3 +1,5 @@
+"""Generic describe and submit helpers shared by calcjob plugins."""
+
 from typing import Any
 
 from aiida import orm
@@ -11,6 +13,7 @@ ENTRY_POINT_GROUP = "aiida.calculations"
 
 
 def calcjob_available(entry_point: str) -> bool:
+    """Return whether a calcjob entry point is installed."""
     return entry_point in get_entry_point_names(ENTRY_POINT_GROUP)
 
 
@@ -34,9 +37,14 @@ def describe_calcjob(entry_point: str) -> dict[str, Any]:
         "inputs": [
             _port_summary(name, port)
             for name, port in spec.inputs.items()
-            if not isinstance(port, PortNamespace) and (name == "code" or name not in base.inputs)
+            if not isinstance(port, PortNamespace)
+            and (name == "code" or name not in base.inputs)
         ],
-        "outputs": [_port_summary(name, port) for name, port in spec.outputs.items() if name not in base.outputs],
+        "outputs": [
+            _port_summary(name, port)
+            for name, port in spec.outputs.items()
+            if name not in base.outputs
+        ],
         "exit_codes": [
             {"status": exit_code.status, "name": name, "message": exit_code.message}
             for name, exit_code in spec.exit_codes.items()
@@ -47,7 +55,7 @@ def describe_calcjob(entry_point: str) -> dict[str, Any]:
 
 
 def submit_calcjob(entry_point: str, inputs: dict[str, Any]) -> orm.ProcessNode:
-    """Validate the inputs against the calcjob spec, store the data nodes and submit to the daemon.
+    """Validate inputs against the calcjob spec, store the data nodes and submit.
 
     Nothing is stored if validation fails.
     """
@@ -89,7 +97,11 @@ def _changed_option_defaults(spec: Any, base: Any) -> dict[str, Any]:
         if not port.has_default() or callable(port.default):
             continue
         base_port = base_options[name] if name in base_options else None
-        if base_port is not None and base_port.has_default() and base_port.default == port.default:
+        if (
+            base_port is not None
+            and base_port.has_default()
+            and base_port.default == port.default
+        ):
             continue
         changed[name] = port.default
     return changed

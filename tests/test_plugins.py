@@ -1,3 +1,5 @@
+"""Tests for the generic plugin registration and describe/submit helpers."""
+
 import asyncio
 from unittest import mock
 
@@ -14,6 +16,7 @@ def _tool_names(server: MCPServer) -> set[str]:
 
 
 def test_describe_dlpoly_inputs():
+    """describe_calcjob reports the DL_POLY-specific inputs."""
     description = calcjob.describe_calcjob("dlpoly")
     inputs = {port["name"]: port for port in description["inputs"]}
 
@@ -25,16 +28,19 @@ def test_describe_dlpoly_inputs():
 
 
 def test_describe_dlpoly_outputs_exclude_base_calcjob_outputs():
+    """describe_calcjob excludes outputs inherited from the base CalcJob."""
     description = calcjob.describe_calcjob("dlpoly")
     outputs = {port["name"]: port for port in description["outputs"]}
 
-    assert set(outputs) == {"output", "statistics", "revive_configuration", "rdf", "history"}
+    expected = {"output", "statistics", "revive_configuration", "rdf", "history"}
+    assert set(outputs) == expected
     assert outputs["output"]["required"] is True
     assert outputs["rdf"]["required"] is False
     assert "retrieved" not in outputs
 
 
 def test_describe_dlpoly_exit_codes():
+    """describe_calcjob reports the DL_POLY-specific exit codes."""
     description = calcjob.describe_calcjob("dlpoly")
     statuses = {code["status"]: code["name"] for code in description["exit_codes"]}
 
@@ -43,6 +49,7 @@ def test_describe_dlpoly_exit_codes():
 
 
 def test_describe_dlpoly_option_defaults():
+    """describe_calcjob reports the metadata option defaults the plugin changed."""
     defaults = calcjob.describe_calcjob("dlpoly")["metadata_option_defaults"]
 
     assert defaults["parser_name"] == "dlpoly"
@@ -50,17 +57,20 @@ def test_describe_dlpoly_option_defaults():
 
 
 def test_describe_unknown_plugin_is_tool_error():
+    """Describing an uninstalled plugin is a ToolError."""
     with pytest.raises(ToolError, match="not installed"):
         calcjob.describe_calcjob("no-such-plugin")
 
 
 def test_dlpoly_register_adds_tool():
+    """register() adds the DL_POLY describe and submit tools."""
     server = MCPServer("test")
     dlpoly.register(server)
     assert _tool_names(server) == {"describe_dlpoly_calcjob", "submit_dlpoly_job"}
 
 
 def test_register_all_registers_installed_plugins():
+    """register_all registers tools for every installed plugin."""
     server = MCPServer("test")
     registered = plugins.register_all(server)
 
@@ -69,6 +79,7 @@ def test_register_all_registers_installed_plugins():
 
 
 def test_register_all_skips_plugin_that_is_not_installed():
+    """register_all skips a plugin whose is_available() returns False."""
     server = MCPServer("test")
     with mock.patch.object(dlpoly, "is_available", return_value=False):
         registered = plugins.register_all(server)

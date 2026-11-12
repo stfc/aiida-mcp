@@ -1,15 +1,19 @@
+"""Tests for AiiDA profile loading and status reporting."""
+
 from unittest import mock
 
 from aiida_mcp import connection
 
 
 def test_status_reports_loaded_profile(aiida_profile):
+    """get_status reports the currently loaded profile."""
     status = connection.get_status()
     assert status["profile_loaded"] is True
     assert status["profile"] == aiida_profile.name
 
 
 def test_status_skips_broker_check_when_daemon_stopped(aiida_profile):
+    """get_status does not try to connect to the broker if the daemon is stopped."""
     with mock.patch.object(connection, "get_daemon_client") as client:
         client.return_value.is_daemon_running = False
         status = connection.get_status()
@@ -20,6 +24,7 @@ def test_status_skips_broker_check_when_daemon_stopped(aiida_profile):
 
 
 def test_status_reports_broker_error_without_raising(aiida_profile):
+    """A broker connection error is reported, not raised."""
     with (
         mock.patch.object(connection, "get_daemon_client") as client,
         mock.patch.object(connection, "get_manager") as manager,
@@ -33,6 +38,8 @@ def test_status_reports_broker_error_without_raising(aiida_profile):
 
 
 def test_status_reports_missing_profile_without_raising(monkeypatch):
+    """A profile-loading error is reported, not raised."""
+
     def fail():
         raise RuntimeError("no config")
 

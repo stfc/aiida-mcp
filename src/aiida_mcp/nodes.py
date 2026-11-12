@@ -1,3 +1,5 @@
+"""Computer, code and node inspection tools."""
+
 import base64
 from typing import Any
 
@@ -25,7 +27,9 @@ def _computer_summary(computer: orm.Computer) -> dict[str, Any]:
     }
 
 
-def _code_summary(code: orm.InstalledCode | orm.PortableCode | orm.Code) -> dict[str, Any]:
+def _code_summary(
+    code: orm.InstalledCode | orm.PortableCode | orm.Code,
+) -> dict[str, Any]:
     computer = code.computer
     return {
         "pk": code.pk,
@@ -59,7 +63,9 @@ def list_computers() -> dict[str, Any]:
     }
 
 
-def list_codes(computer: str | None = None, limit: int = DEFAULT_LIMIT) -> dict[str, Any]:
+def list_codes(
+    computer: str | None = None, limit: int = DEFAULT_LIMIT
+) -> dict[str, Any]:
     """List codes, optionally only those on one computer."""
     connection.ensure_profile()
     limit = clamp_limit(limit, DEFAULT_LIMIT, MAX_LIMIT)
@@ -90,7 +96,8 @@ def query_nodes(
 
     filters: dict[str, Any] = {}
     if node_type is not None:
-        filters["node_type"] = {"like": node_type if node_type.endswith("%") else f"{node_type}%"}
+        pattern = node_type if node_type.endswith("%") else f"{node_type}%"
+        filters["node_type"] = {"like": pattern}
     if extra_key is not None:
         filters["extras"] = {"has_key": extra_key}
 
@@ -126,9 +133,8 @@ def get_node_content(pk: int) -> dict[str, Any]:
             return reader(node)
 
     supported = ", ".join(cls.__name__ for cls in _CONTENT_READERS)
-    raise ToolError(
-        f"Node {pk} is a {node.node_type}; reading content is only supported for: {supported}"
-    )
+    message = f"Node {pk} is a {node.node_type}; only supported for: {supported}"
+    raise ToolError(message)
 
 
 def _singlefile_content(node: orm.SinglefileData) -> dict[str, Any]:

@@ -1,3 +1,5 @@
+"""DL_POLY calcjob tools."""
+
 from typing import Any
 
 from aiida import orm
@@ -8,13 +10,18 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from aiida_mcp import connection
-from aiida_mcp.plugins.calcjob import calcjob_available, describe_calcjob, submit_calcjob
+from aiida_mcp.plugins.calcjob import (
+    calcjob_available,
+    describe_calcjob,
+    submit_calcjob,
+)
 from aiida_mcp.plugins.inputs import ControlInput, FileInput, build_node
 
 ENTRY_POINT = "dlpoly"
 
 
 def is_available() -> bool:
+    """Return whether the DL_POLY calcjob plugin is installed."""
     return calcjob_available(ENTRY_POINT)
 
 
@@ -31,7 +38,11 @@ def submit_job(
     """Build the inputs for a DL_POLY calcjob and submit it to the daemon."""
     connection.ensure_profile()
 
-    for name, value in (("num_machines", num_machines), ("num_mpiprocs_per_machine", num_mpiprocs_per_machine)):
+    resources = (
+        ("num_machines", num_machines),
+        ("num_mpiprocs_per_machine", num_mpiprocs_per_machine),
+    )
+    for name, value in resources:
         if value < 1:
             raise ToolError(f"{name} must be at least 1, got {value}")
 
@@ -51,10 +62,15 @@ def submit_job(
     inputs = {
         "code": _load_code(code),
         "configuration": build_node(
-            configuration, "configuration", "CONFIG", (orm.SinglefileData, orm.StructureData)
+            configuration,
+            "configuration",
+            "CONFIG",
+            (orm.SinglefileData, orm.StructureData),
         ),
         "field": build_node(field, "field", "FIELD", (orm.SinglefileData,)),
-        "control": build_node(control, "control", "CONTROL", (orm.SinglefileData, orm.Dict)),
+        "control": build_node(
+            control, "control", "CONTROL", (orm.SinglefileData, orm.Dict)
+        ),
         "metadata": metadata,
     }
 
@@ -67,11 +83,13 @@ def submit_job(
         "label": node.label,
         "description": node.description,
         "code": inputs["code"].full_label,
-        "inputs": {name: inputs[name].pk for name in ("configuration", "field", "control")},
+        "inputs": {
+            name: inputs[name].pk for name in ("configuration", "field", "control")
+        },
         "daemon_running": daemon_running,
     }
     if not daemon_running:
-        result["note"] = "The daemon is not running, so the job will wait until it is started."
+        result["note"] = "The daemon is not running; the job will wait until it starts."
     return result
 
 
@@ -81,13 +99,16 @@ def _load_code(identifier: str | int) -> orm.AbstractCode:
     except NotExistent as exc:
         raise ToolError(f"No code found for {identifier!r}") from exc
     except MultipleObjectsError as exc:
-        raise ToolError(f"More than one code matches {identifier!r}, use its PK or full label") from exc
+        message = f"More than one code matches {identifier!r}, use its PK or full label"
+        raise ToolError(message) from exc
 
 
 def register(mcp: MCPServer) -> None:
+    """Register the DL_POLY tools on the given MCP server."""
+
     @mcp.tool()
     def describe_dlpoly_calcjob() -> dict[str, Any]:
-        """Describe the DL_POLY calcjob: its inputs, outputs, exit codes and default options."""
+        """Describe the DL_POLY calcjob: inputs, outputs, exit codes and defaults."""
         return describe_calcjob(ENTRY_POINT)
 
     @mcp.tool()
@@ -101,19 +122,21 @@ def register(mcp: MCPServer) -> None:
         label: str | None = None,
         description: str | None = None,
     ) -> dict[str, Any]:
-        """Submit a DL_POLY calculation to the AiiDA daemon. This creates nodes and starts a job.
+        """Submit a DL_POLY calculation to the daemon; creates nodes and starts a job.
 
         code: label (e.g. dl_poly@localhost) or PK of the DL_POLY code.
-        configuration: the CONFIG file, as a path, text, or PK of a SinglefileData or StructureData node.
+        configuration: the CONFIG file, as a path, text, or PK of a SinglefileData or
+            StructureData node.
         field: the FIELD file, as a path, text, or PK of a SinglefileData node.
-        control: the CONTROL file as a path, text, or PK of a SinglefileData node, or a dict of parameters.
+        control: the CONTROL file as a path, text, or PK of a SinglefileData node, or a
+            dict of parameters.
         num_machines: number of machines to run on.
         num_mpiprocs_per_machine: MPI processes per machine.
         label: optional label to set on the calcjob node.
         description: optional description to set on the calcjob node.
 
         Give exactly one of path, text, pk (or parameters for control) for each input.
-        Returns the process PK. Use get_process and get_process_report to follow the job.
+        Returns the process PK. Follow the job with get_process and get_process_report.
         """
         return submit_job(
             code=code,
