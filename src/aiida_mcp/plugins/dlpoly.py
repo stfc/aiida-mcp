@@ -25,6 +25,8 @@ def submit_job(
     control: ControlInput,
     num_machines: int = 1,
     num_mpiprocs_per_machine: int = 1,
+    label: str | None = None,
+    description: str | None = None,
 ) -> dict[str, Any]:
     """Build the inputs for a DL_POLY calcjob and submit it to the daemon."""
     connection.ensure_profile()
@@ -33,6 +35,19 @@ def submit_job(
         if value < 1:
             raise ToolError(f"{name} must be at least 1, got {value}")
 
+    metadata: dict[str, Any] = {
+        "options": {
+            "resources": {
+                "num_machines": num_machines,
+                "num_mpiprocs_per_machine": num_mpiprocs_per_machine,
+            }
+        }
+    }
+    if label is not None:
+        metadata["label"] = label
+    if description is not None:
+        metadata["description"] = description
+
     inputs = {
         "code": _load_code(code),
         "configuration": build_node(
@@ -40,14 +55,7 @@ def submit_job(
         ),
         "field": build_node(field, "field", "FIELD", (orm.SinglefileData,)),
         "control": build_node(control, "control", "CONTROL", (orm.SinglefileData, orm.Dict)),
-        "metadata": {
-            "options": {
-                "resources": {
-                    "num_machines": num_machines,
-                    "num_mpiprocs_per_machine": num_mpiprocs_per_machine,
-                }
-            }
-        },
+        "metadata": metadata,
     }
 
     node = submit_calcjob(ENTRY_POINT, inputs)
@@ -56,6 +64,8 @@ def submit_job(
     result: dict[str, Any] = {
         "pk": node.pk,
         "uuid": node.uuid,
+        "label": node.label,
+        "description": node.description,
         "code": inputs["code"].full_label,
         "inputs": {name: inputs[name].pk for name in ("configuration", "field", "control")},
         "daemon_running": daemon_running,
@@ -88,6 +98,8 @@ def register(mcp: MCPServer) -> None:
         control: ControlInput,
         num_machines: int = 1,
         num_mpiprocs_per_machine: int = 1,
+        label: str | None = None,
+        description: str | None = None,
     ) -> dict[str, Any]:
         """Submit a DL_POLY calculation to the AiiDA daemon. This creates nodes and starts a job.
 
@@ -97,6 +109,8 @@ def register(mcp: MCPServer) -> None:
         control: the CONTROL file as a path, text, or PK of a SinglefileData node, or a dict of parameters.
         num_machines: number of machines to run on.
         num_mpiprocs_per_machine: MPI processes per machine.
+        label: optional label to set on the calcjob node.
+        description: optional description to set on the calcjob node.
 
         Give exactly one of path, text, pk (or parameters for control) for each input.
         Returns the process PK. Use get_process and get_process_report to follow the job.
@@ -108,4 +122,6 @@ def register(mcp: MCPServer) -> None:
             control=control,
             num_machines=num_machines,
             num_mpiprocs_per_machine=num_mpiprocs_per_machine,
+            label=label,
+            description=description,
         )

@@ -122,6 +122,36 @@ def test_submit_job_builds_validated_inputs(code, tmp_path, stored_node_returned
     assert result["code"] == code.full_label
 
 
+def test_submit_job_sets_label_and_description(code, tmp_path, stored_node_returned):
+    config, field = _files(tmp_path)
+    dlpoly.submit_job(
+        code=code.pk,
+        configuration=FileInput(path=str(config)),
+        field=FileInput(path=str(field)),
+        control=ControlInput(parameters={}),
+        label="my run",
+        description="a test run",
+    )
+
+    metadata = stored_node_returned.call_args.kwargs["metadata"]
+    assert metadata["label"] == "my run"
+    assert metadata["description"] == "a test run"
+
+
+def test_submit_job_omits_label_and_description_by_default(code, tmp_path, stored_node_returned):
+    config, field = _files(tmp_path)
+    dlpoly.submit_job(
+        code=code.pk,
+        configuration=FileInput(path=str(config)),
+        field=FileInput(path=str(field)),
+        control=ControlInput(parameters={}),
+    )
+
+    metadata = stored_node_returned.call_args.kwargs["metadata"]
+    assert "label" not in metadata
+    assert "description" not in metadata
+
+
 def test_submit_job_accepts_code_label(code, tmp_path, stored_node_returned):
     config, field = _files(tmp_path)
     dlpoly.submit_job(
@@ -203,5 +233,6 @@ def test_submit_tool_is_registered_with_input_schema():
 
     schema = tools["submit_dlpoly_job"].input_schema
     assert set(schema["required"]) == {"code", "configuration", "field", "control"}
+    assert {"label", "description"} <= set(schema["properties"])
     assert {"path", "text", "pk"} <= set(schema["$defs"]["FileInput"]["properties"])
     assert "parameters" in schema["$defs"]["ControlInput"]["properties"]
