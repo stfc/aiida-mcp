@@ -1,3 +1,4 @@
+import base64
 from typing import Any
 
 from aiida import orm
@@ -9,6 +10,7 @@ from aiida_mcp.limits import clamp_limit
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 200
+MAX_FILE_BYTES = 1_000_000
 
 
 def _computer_summary(computer: orm.Computer) -> dict[str, Any]:
@@ -109,3 +111,62 @@ def query_nodes(
         "returned": min(total, limit),
         "nodes": [_node_summary(node) for (node,) in qb.all()],
     }
+
+
+def get_node_content(pk: int) -> dict[str, Any]:
+    """Return the content of a node, for node types where that is supported."""
+    connection.ensure_profile()
+    try:
+        node = orm.load_node(pk)
+    except NotExistent as exc:
+        raise ToolError(f"No node with pk {pk}") from exc
+
+    for node_cls, reader in _CONTENT_READERS.items():
+        if isinstance(node, node_cls):
+            return reader(node)
+
+    supported = ", ".join(cls.__name__ for cls in _CONTENT_READERS)
+    raise ToolError(
+        f"Node {pk} is a {node.node_type}; reading content is only supported for: {supported}"
+    )
+
+
+def _singlefile_content(node: orm.SinglefileData) -> dict[str, Any]:
+    with node.base.repository.open(node.filename, mode="rb") as handle:
+        data = handle.read(MAX_FILE_BYTES + 1)
+    truncated = len(data) > MAX_FILE_BYTES
+    if truncated:
+        data = data[:MAX_FILE_BYTES]
+
+    try:
+        content = data.decode("utf-8")
+        encoding = "utf-8"
+    except UnicodeDecodeError:
+        content = base64.b64encode(data).decode("ascii")
+        encoding = "base64"
+
+    return {
+        "pk": node.pk,
+        "uuid": node.uuid,
+        "node_type": node.node_type,
+        "filename": node.filename,
+        "encoding": encoding,
+        "truncated": truncated,
+        "content": content,
+    }
+
+
+def _value_content(node: orm.Int | orm.Float) -> dict[str, Any]:
+    return {
+        "pk": node.pk,
+        "uuid": node.uuid,
+        "node_type": node.node_type,
+        "content": node.value,
+    }
+
+
+_CONTENT_READERS = {
+    orm.SinglefileData: _singlefile_content,
+    orm.Int: _value_content,
+    orm.Float: _value_content,
+}

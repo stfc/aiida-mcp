@@ -33,7 +33,9 @@ def list_processes(
     created_after: ISO date or datetime, e.g. 2026-11-01 or 2026-11-01T09:00:00.
     limit: maximum number of processes to return (capped at 200).
     """
-    return processes.list_processes(state=state, label=label, created_after=created_after, limit=limit)
+    return processes.list_processes(
+        state=state, label=label, created_after=created_after, limit=limit
+    )
 
 
 @mcp.tool()
@@ -81,7 +83,22 @@ def query_nodes(
     extra_key: only nodes that have this extras key.
     limit: maximum number of nodes to return (capped at 200).
     """
-    return nodes.query_nodes(node_type=node_type, group=group, extra_key=extra_key, limit=limit)
+    return nodes.query_nodes(
+        node_type=node_type, group=group, extra_key=extra_key, limit=limit
+    )
+
+
+@mcp.tool()
+def get_node_content(pk: int) -> dict:
+    """Return the content of a node, for node types where that is supported.
+
+    pk: primary key of the node.
+
+    Currently supported: SinglefileData (decoded as text when possible;
+    content over 1 MB is truncated, and undecodable files are returned
+    base64-encoded), Int and Float (returned as their numeric value).
+    """
+    return nodes.get_node_content(pk)
 
 
 plugins.register_all(mcp)
@@ -96,7 +113,7 @@ def main() -> None:
         help="MCP transport to use (default: stdio)",
     )
     args = parser.parse_args()
-    mcp.run(transport=args.transport)
+    mcp.run(transport=args.transport, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":

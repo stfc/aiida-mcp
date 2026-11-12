@@ -17,6 +17,7 @@ def test_all_tools_are_registered():
         "list_computers",
         "list_codes",
         "query_nodes",
+        "get_node_content",
         "describe_dlpoly_calcjob",
         "submit_dlpoly_job",
     }

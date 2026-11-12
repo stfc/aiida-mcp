@@ -102,3 +102,61 @@ def test_query_nodes_finds_process_nodes():
     _, node = run_get_node(add, x=orm.Int(1), y=orm.Int(1))
     result = nodes.query_nodes(node_type="process", limit=50)
     assert node.pk in [n["pk"] for n in result["nodes"]]
+
+
+def test_get_node_content_returns_text(tmp_path):
+    path = tmp_path / "hello.txt"
+    path.write_text("hello world")
+    node = orm.SinglefileData(file=str(path)).store()
+
+    result = nodes.get_node_content(node.pk)
+    assert result["filename"] == "hello.txt"
+    assert result["encoding"] == "utf-8"
+    assert result["truncated"] is False
+    assert result["content"] == "hello world"
+
+
+def test_get_node_content_base64_encodes_binary(tmp_path):
+    path = tmp_path / "binary.dat"
+    path.write_bytes(b"\xff\xfe\x00\x01")
+    node = orm.SinglefileData(file=str(path)).store()
+
+    result = nodes.get_node_content(node.pk)
+    assert result["encoding"] == "base64"
+    import base64
+
+    assert base64.b64decode(result["content"]) == b"\xff\xfe\x00\x01"
+
+
+def test_get_node_content_truncates_large_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(nodes, "MAX_FILE_BYTES", 5)
+    path = tmp_path / "big.txt"
+    path.write_text("0123456789")
+    node = orm.SinglefileData(file=str(path)).store()
+
+    result = nodes.get_node_content(node.pk)
+    assert result["truncated"] is True
+    assert result["content"] == "01234"
+
+
+def test_get_node_content_returns_int_value():
+    node = orm.Int(42).store()
+    result = nodes.get_node_content(node.pk)
+    assert result["content"] == 42
+
+
+def test_get_node_content_returns_float_value():
+    node = orm.Float(3.14).store()
+    result = nodes.get_node_content(node.pk)
+    assert result["content"] == 3.14
+
+
+def test_get_node_content_rejects_missing_node():
+    with pytest.raises(ToolError, match="No node with pk"):
+        nodes.get_node_content(999999)
+
+
+def test_get_node_content_rejects_unsupported_node_type():
+    node = orm.Str("not supported").store()
+    with pytest.raises(ToolError, match="only supported for:"):
+        nodes.get_node_content(node.pk)
