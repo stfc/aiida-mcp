@@ -91,6 +91,9 @@ Write tools
      - Creates a new AiiDA profile and initialises its storage. See `Managing profiles`_.
    * - ``switch_profile`` *(currently disabled)*
      - Switches the server's active AiiDA profile. See `Managing profiles`_.
+   * - ``rescan_plugins``
+     - Re-checks for installed AiiDA plugins and registers any newly available ones. See
+       `Rescanning for plugins`_.
 
 Submitting a DL_POLY job
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -284,6 +287,38 @@ Example arguments for a single point calculation:
 Behaviour is the same as ``submit_dlpoly_job``. Follow the job with ``get_process`` and
 ``get_process_report``, and check ``exit_status`` against the codes listed by the matching
 ``describe_mlip_*_calcjob`` tool.
+
+.. _rescanning-for-plugins:
+
+Rescanning for plugins
+-------------------------
+
+AiiDA caches the list of installed entry points for the lifetime of the Python process
+(``aiida.plugins.entry_point.eps``/``eps_select`` are both wrapped in ``functools.cache``). That means
+installing a new calcjob plugin package (e.g. ``pip install aiida-dlpoly`` into the server's environment
+while it is already running) is invisible to the server until that cache is cleared — restarting the
+whole server is one way to do that, but ``rescan_plugins``
+(:func:`aiida_mcp.plugins.clear_entry_point_cache` plus :func:`aiida_mcp.plugins.register_all`) does it
+without a restart:
+
+1. Clears AiiDA's cached entry point lookups.
+2. Re-runs the normal plugin registration pass (:func:`aiida_mcp.plugins.register_all`), which checks
+   ``is_available()`` for every module in ``PLUGIN_MODULES`` again and registers tools for any that are
+   now available.
+
+Plugins already registered are left alone — registering the same tool name twice is a safe no-op (the
+underlying MCP server keeps the existing tool and does not duplicate or error). The response reports both
+the full set of currently available plugins and which ones (if any) were newly registered by this call:
+
+.. code-block:: json
+
+    {
+      "available": ["aiida_mcp.plugins.dlpoly", "aiida_mcp.plugins.chemshell"],
+      "newly_registered": ["aiida_mcp.plugins.chemshell"]
+    }
+
+An empty ``newly_registered`` list means nothing changed since the server started (or since the last
+successful rescan) — not that the rescan failed.
 
 .. _managing-profiles:
 

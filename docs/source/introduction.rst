@@ -213,6 +213,11 @@ Troubleshooting
 A job stays in the ``waiting`` or ``created`` state
     The daemon is probably not running. Run ``verdi daemon status``, then ``verdi daemon start``.
 
+A newly installed plugin's tools aren't showing up
+    The server only checks for installed plugins on startup, because AiiDA caches the list of installed
+    entry points for the lifetime of the process. Call the ``rescan_plugins`` tool, or restart the
+    server, to pick up a plugin package installed afterwards (see :ref:`rescanning-for-plugins`).
+
 A job finishes with a non-zero exit status or ``excepted``
     Call ``get_process_report`` with the PK. Compare the exit status with the matching
     ``describe_*_calcjob`` tool, and check that the code's executable path exists

@@ -141,6 +141,7 @@ Notes:
 | `submit_dlpoly_job` | Builds and submits a DL_POLY calculation to the daemon. |
 | `submit_chemshell_job` | Builds and submits a ChemShell calculation to the daemon. |
 | `submit_mlip_*_job` | Builds and submits an MLIP calculation to the daemon. |
+| `rescan_plugins` | Re-checks for installed AiiDA plugins and registers tools for any that have become available since the server started. |
 
 ## Submitting a job
 
@@ -220,6 +221,9 @@ No default profile was found. Run `verdi profile list`. If the client starts the
 
 **A job stays in the `waiting` or `created` state.**
 The daemon is probably not running. Run `verdi daemon status`, then `verdi daemon start`.
+
+**A newly installed plugin's tools aren't showing up.**
+The server only checks for installed plugins on startup. Call the `rescan_plugins` tool, or restart the server, to pick up a plugin package installed afterwards.
 
 **A job finishes with a non-zero exit status or `excepted`.**
 Call `get_process_report` with the PK. For DL_POLY, compare the exit status with `describe_dlpoly_calcjob`. Check that the code's executable path exists (`verdi code show <code>`).

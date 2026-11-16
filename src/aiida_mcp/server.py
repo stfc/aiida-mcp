@@ -302,7 +302,31 @@ def list_profiles() -> dict:
 #     return profiles.switch_profile(name)
 
 
-plugins.register_all(mcp)
+_registered_plugins = plugins.register_all(mcp)
+
+
+@mcp.tool()
+def rescan_plugins() -> dict:
+    """Re-check for installed AiiDA calcjob plugins and register any new ones.
+
+    AiiDA caches the list of installed entry points for the lifetime of the server
+    process, so a plugin package (e.g. ``aiida-dlpoly``) installed after the server
+    started is not picked up automatically. This clears that cache and registers tools
+    for any plugin that has since become available; already-registered plugins are left
+    alone.
+
+    Returns
+    -------
+    dict
+        Every plugin module currently available, and which of those (if any) were newly
+        registered by this call.
+    """
+    global _registered_plugins
+    plugins.clear_entry_point_cache()
+    available = plugins.register_all(mcp)
+    newly_registered = sorted(set(available) - set(_registered_plugins))
+    _registered_plugins = available
+    return {"available": available, "newly_registered": newly_registered}
 
 
 def main() -> None:

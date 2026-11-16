@@ -136,3 +136,38 @@ def test_register_all_skips_plugin_that_is_not_installed():
 
     assert "aiida_mcp.plugins.dlpoly" not in registered
     assert "describe_dlpoly_calcjob" not in _tool_names(server)
+
+
+def test_register_all_registers_newly_available_plugin_on_rescan():
+    """Calling register_all again after a plugin becomes available registers it."""
+    server = MCPServer("test")
+    with mock.patch.object(dlpoly, "is_available", return_value=False):
+        first = plugins.register_all(server)
+    assert "aiida_mcp.plugins.dlpoly" not in first
+
+    second = plugins.register_all(server)
+    assert "aiida_mcp.plugins.dlpoly" in second
+    assert "describe_dlpoly_calcjob" in _tool_names(server)
+
+
+def test_register_all_rescan_does_not_disturb_already_registered_tools():
+    """Calling register_all again leaves already-registered tools untouched."""
+    server = MCPServer("test")
+    plugins.register_all(server)
+    before = _tool_names(server)
+
+    plugins.register_all(server)
+
+    assert _tool_names(server) == before
+
+
+def test_clear_entry_point_cache_clears_aiidas_cached_lookups():
+    """clear_entry_point_cache clears AiiDA's cached entry point lookups."""
+    with (
+        mock.patch("aiida.plugins.entry_point.eps") as eps,
+        mock.patch("aiida.plugins.entry_point.eps_select") as eps_select,
+    ):
+        plugins.clear_entry_point_cache()
+
+    eps.cache_clear.assert_called_once()
+    eps_select.cache_clear.assert_called_once()

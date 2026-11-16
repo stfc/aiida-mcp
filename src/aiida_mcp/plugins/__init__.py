@@ -2,6 +2,7 @@
 
 import importlib
 
+from aiida.plugins import entry_point
 from mcp.server.mcpserver import MCPServer
 
 # Each plugin module provides `is_available()` and `register(mcp)`.
@@ -32,3 +33,15 @@ def register_all(mcp: MCPServer) -> list[str]:
             module.register(mcp)
             registered.append(name)
     return registered
+
+
+def clear_entry_point_cache() -> None:
+    """Clear AiiDA's cached list of installed entry points.
+
+    AiiDA caches entry point lookups (``aiida.plugins.entry_point.eps``/``eps_select``)
+    for the lifetime of the process, so a plugin package installed after the server
+    started would otherwise never be detected as available. Call this before
+    `register_all` to pick up newly installed plugins.
+    """
+    entry_point.eps.cache_clear()
+    entry_point.eps_select.cache_clear()
