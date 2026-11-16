@@ -5,7 +5,10 @@ import importlib
 from mcp.server.mcpserver import MCPServer
 
 # Each plugin module provides `is_available()` and `register(mcp)`.
-PLUGIN_MODULES = ("aiida_mcp.plugins.dlpoly",)
+PLUGIN_MODULES = (
+    "aiida_mcp.plugins.dlpoly",
+    "aiida_mcp.plugins.chemshell",
+)
 
 
 def register_all(mcp: MCPServer) -> list[str]:

@@ -1,8 +1,8 @@
 # aiida-mcp
 
-An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It lets an MCP client (such as an AI assistant) inspect an AiiDA database and submit DL_POLY calculations.
+An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It lets an MCP client (such as an AI assistant) inspect an AiiDA database and submit DL_POLY and ChemShell calculations.
 
-> **Warning:** the server has write tools that are always on: `submit_dlpoly_job` creates nodes and starts jobs on the daemon, `create_profile` creates new AiiDA profiles and initialises their storage, and `switch_profile` changes the profile every other tool call uses. Point it at a profile you are happy to write to.
+> **Warning:** the server has write tools that are always on: `submit_dlpoly_job` and `submit_chemshell_job` create nodes and start jobs on the daemon, `create_profile` creates new AiiDA profiles and initialises their storage, and `switch_profile` changes the profile every other tool call uses. Point it at a profile you are happy to write to.
 
 ## Contents
 
@@ -13,6 +13,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - [Connecting a client](#connecting-a-client)
 - [Tools](#tools)
 - [Submitting a DL_POLY job](#submitting-a-dl_poly-job)
+- [Submitting a ChemShell job](#submitting-a-chemshell-job)
 - [Managing profiles](#managing-profiles)
 - [Detecting AiiDAlab](#detecting-aiidalab)
 - [Development and tests](#development-and-tests)
@@ -23,6 +24,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - Python 3.10 or newer. The project is developed and tested on Python 3.14 only.
 - `aiida-core` and `mcp`, which are installed as dependencies.
 - For DL_POLY jobs: a compiled DL_POLY executable and the optional `aiida-dlpoly` plugin.
+- For ChemShell jobs: a compiled ChemShell executable and the optional `aiida-chemshell` plugin.
 - For AiiDAlab detection: the optional `jupyter-server` dependency (already present if installed alongside AiiDAlab itself).
 
 You do not need PostgreSQL or RabbitMQ. The setup below uses SQLite and the ZeroMQ broker that AiiDA includes.
@@ -43,9 +45,10 @@ Optional extras:
 
 ```bash
 pip install -e ".[dlpoly]"          # DL_POLY tools (installs aiida-dlpoly)
+pip install -e ".[chemshell]"       # ChemShell tools (installs aiida-chemshell)
 pip install -e ".[aiidalab]"        # AiiDAlab detection (installs jupyter-server)
 pip install -e ".[test]"            # pytest, for running the tests
-pip install -e ".[dlpoly,aiidalab,test]"  # all of the above
+pip install -e ".[dlpoly,chemshell,aiidalab,test]"  # all of the above
 ```
 
 Check the install:
@@ -119,6 +122,32 @@ verdi code list
 verdi code show dl_poly
 ```
 
+### Set up a ChemShell code
+
+Only needed for `submit_chemshell_job`. Register your ChemShell executable as a code on the computer it runs on.
+
+```bash
+verdi code create core.code.installed \
+    --label chemsh \
+    --computer localhost \
+    --filepath-executable /absolute/path/to/chemsh \
+    --default-calc-job-plugin chemshell \
+    --no-with-mpi \
+    --non-interactive
+```
+
+Notes:
+
+- Whether to pass `--with-mpi` depends on which executable you point at, not on whether your ChemShell build is MPI-enabled: use `--no-with-mpi` for the `chemsh` wrapper script (it handles launching MPI itself), and `--with-mpi` if you point directly at `chemsh.x`.
+- A stored code's executable path cannot be edited. To fix a wrong path, create a new code, or use `verdi code duplicate`.
+
+Check it:
+
+```bash
+verdi code list
+verdi code show chemsh
+```
+
 ## Running the server
 
 The server speaks MCP over **stdio** by default, which is what most clients use. The client normally starts the server itself.
@@ -172,6 +201,7 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 | `list_profiles` | Lists all configured AiiDA profiles, showing the current and default ones. |
 | `get_aiidalab_status` | Reports whether an AiiDAlab server is running locally, and its URL. See [Detecting AiiDAlab](#detecting-aiidalab). |
 | `describe_dlpoly_calcjob` | Describes the DL_POLY calcjob: inputs, outputs, exit codes, default options. |
+| `describe_chemshell_calcjob` | Describes the ChemShell calcjob: inputs, outputs, exit codes, default options. |
 
 Notes:
 
@@ -186,6 +216,7 @@ Notes:
 | Tool | What it does |
 |------|--------------|
 | `submit_dlpoly_job` | Builds and submits a DL_POLY calculation to the daemon. |
+| `submit_chemshell_job` | Builds and submits a ChemShell calculation to the daemon. |
 | `create_profile` *(currently disabled)* | Creates a new AiiDA profile and initialises its storage. See [Managing profiles](#managing-profiles). |
 | `switch_profile` *(currently disabled)* | Switches the server's active AiiDA profile. See [Managing profiles](#managing-profiles). |
 
@@ -201,6 +232,8 @@ Notes:
 | `control` | The CONTROL file, or a dict of parameters. |
 | `num_machines` | Machines to run on. Default 1. |
 | `num_mpiprocs_per_machine` | MPI processes per machine. Default 1. |
+| `label` | Optional label to set on the calcjob node. |
+| `description` | Optional description to set on the calcjob node. |
 
 Each of `configuration`, `field` and `control` takes **exactly one** of:
 
@@ -230,6 +263,49 @@ Behaviour:
 - The server does not wait for the job to finish.
 
 A typical session: call `get_status`, call `list_codes` to find the code, call `submit_dlpoly_job`, then poll `get_process` until `state` is `finished` and check `exit_status`. An `exit_status` of 0 means success. Other values are listed by `describe_dlpoly_calcjob`.
+
+## Submitting a ChemShell job
+
+`submit_chemshell_job` takes:
+
+| Argument | Meaning |
+|----------|---------|
+| `code` | Label (e.g. `chemsh@localhost`) or PK of the ChemShell code. |
+| `structure` | The input structure. |
+| `structure_index` | Index to extract one structure from a multi-structure `TrajectoryData` input. |
+| `structure2` | A second input structure, e.g. the final structure for a NEB optimisation. |
+| `calculation_parameters` | Dict of parameters for the ChemShell Task object. |
+| `optimisation_parameters` | Dict of parameters for a geometry optimisation task. Providing this configures an optimisation task. |
+| `qm_parameters` | Dict of parameters for the QM Theory object. |
+| `mm_parameters` | Dict of parameters for the MM interface. |
+| `qmmm_parameters` | Dict of parameters for the QM/MM interface. |
+| `force_field_file` | File with force field parameters for the MM interface. |
+| `output_structure_as_file` | If true, return the optimised structure as a `.cjson` file instead of a `StructureData` node. Default false. |
+| `num_machines` | Machines to run on. Default 1. |
+| `num_mpiprocs_per_machine` | MPI processes per machine. Default 4. |
+| `label` | Optional label to set on the calcjob node. |
+| `description` | Optional description to set on the calcjob node. |
+
+`structure`, `structure2` and `force_field_file` each take **exactly one** of:
+
+- `path`: a file on the machine running the server,
+- `text`: the file contents as a string,
+- `pk`: an existing node in the database. `structure`/`structure2` accept `SinglefileData` (a `.xyz`, `.pun` or `.cjson` file), `StructureData`, or `TrajectoryData`; `force_field_file` accepts `SinglefileData`.
+
+`calculation_parameters`, `optimisation_parameters`, `qm_parameters`, `mm_parameters` and `qmmm_parameters` each take `parameters`, a dictionary stored as a `Dict` node (or `pk` of an existing `Dict` node).
+
+Example arguments:
+
+```json
+{
+  "code": "chemsh@localhost",
+  "structure": {"path": "/data/system.xyz"},
+  "qm_parameters": {"parameters": {"theory": "nwchem", "basis": "6-31G"}},
+  "optimisation_parameters": {"parameters": {}}
+}
+```
+
+Behaviour is the same as `submit_dlpoly_job`: inputs are validated before anything is stored, the tool returns the process PK and the PKs of the input nodes it created, and a stopped daemon just means the job waits. Follow the job with `get_process` and `get_process_report`, and check `exit_status` against the codes listed by `describe_chemshell_calcjob`.
 
 ## Managing profiles
 
@@ -284,7 +360,7 @@ This only detects a server running in the same Python environment as the MCP ser
 ## Development and tests
 
 ```bash
-pip install -e ".[dlpoly,test]"
+pip install -e ".[dlpoly,chemshell,test]"
 pytest
 ```
 
@@ -306,12 +382,13 @@ src/aiida_mcp/
     calcjob.py     generic describe and submit helpers
     inputs.py      builds input nodes from paths, text, PKs
     dlpoly.py      DL_POLY tools
+    chemshell.py   ChemShell tools
 tests/
 ```
 
 ### Adding a plugin
 
-1. Add a module in `src/aiida_mcp/plugins/` that provides `is_available()` and `register(mcp)`. Use `calcjob.py` for the shared describe and submit logic. `dlpoly.py` is a worked example.
+1. Add a module in `src/aiida_mcp/plugins/` that provides `is_available()` and `register(mcp)`. Use `calcjob.py` for the shared describe and submit logic, and `calcjob.load_code()` for loading a code by label or PK. `dlpoly.py` is a simple worked example; `chemshell.py` shows a plugin with several optional file and `Dict` inputs.
 2. Add the module's dotted name to `PLUGIN_MODULES` in `plugins/__init__.py`.
 3. Add the plugin as an optional dependency in `pyproject.toml`.
 

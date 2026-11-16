@@ -3,7 +3,6 @@
 from typing import Any
 
 from aiida import orm
-from aiida.common import MultipleObjectsError, NotExistent
 from aiida.engine.daemon.client import get_daemon_client
 from aiida.manage.configuration import get_profile
 from mcp.server.mcpserver import MCPServer
@@ -13,6 +12,7 @@ from aiida_mcp import connection
 from aiida_mcp.plugins.calcjob import (
     calcjob_available,
     describe_calcjob,
+    load_code,
     submit_calcjob,
 )
 from aiida_mcp.plugins.inputs import ControlInput, FileInput, build_node
@@ -60,7 +60,7 @@ def submit_job(
         metadata["description"] = description
 
     inputs = {
-        "code": _load_code(code),
+        "code": load_code(code),
         "configuration": build_node(
             configuration,
             "configuration",
@@ -91,16 +91,6 @@ def submit_job(
     if not daemon_running:
         result["note"] = "The daemon is not running; the job will wait until it starts."
     return result
-
-
-def _load_code(identifier: str | int) -> orm.AbstractCode:
-    try:
-        return orm.load_code(identifier)
-    except NotExistent as exc:
-        raise ToolError(f"No code found for {identifier!r}") from exc
-    except MultipleObjectsError as exc:
-        message = f"More than one code matches {identifier!r}, use its PK or full label"
-        raise ToolError(message) from exc
 
 
 def register(mcp: MCPServer) -> None:

@@ -3,6 +3,7 @@
 from typing import Any
 
 from aiida import orm
+from aiida.common import MultipleObjectsError, NotExistent
 from aiida.engine import CalcJob, submit
 from aiida.plugins import CalculationFactory
 from aiida.plugins.entry_point import get_entry_point_names
@@ -72,6 +73,17 @@ def submit_calcjob(entry_point: str, inputs: dict[str, Any]) -> orm.ProcessNode:
             value.store()
 
     return submit(calcjob, **inputs)
+
+
+def load_code(identifier: str | int) -> orm.AbstractCode:
+    """Load a code by label or PK, raising a ToolError if that fails."""
+    try:
+        return orm.load_code(identifier)
+    except NotExistent as exc:
+        raise ToolError(f"No code found for {identifier!r}") from exc
+    except MultipleObjectsError as exc:
+        message = f"More than one code matches {identifier!r}, use its PK or full label"
+        raise ToolError(message) from exc
 
 
 def _port_summary(name: str, port: Any) -> dict[str, Any]:

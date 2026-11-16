@@ -8,7 +8,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from aiida_mcp import plugins
-from aiida_mcp.plugins import calcjob, dlpoly
+from aiida_mcp.plugins import calcjob, chemshell, dlpoly
 
 
 def _tool_names(server: MCPServer) -> set[str]:
@@ -56,6 +56,56 @@ def test_describe_dlpoly_option_defaults():
     assert defaults["resources"] == {"num_machines": 1, "num_mpiprocs_per_machine": 1}
 
 
+def test_describe_chemshell_inputs():
+    """describe_calcjob reports the ChemShell-specific inputs."""
+    description = calcjob.describe_calcjob("chemshell")
+    inputs = {port["name"]: port for port in description["inputs"]}
+
+    assert inputs["structure"]["required"] is True
+    assert inputs["structure"]["types"] == [
+        "SinglefileData",
+        "StructureData",
+        "TrajectoryData",
+    ]
+    assert inputs["code"]["required"] is False
+
+
+def test_describe_chemshell_outputs_exclude_base_calcjob_outputs():
+    """describe_calcjob excludes outputs inherited from the base CalcJob."""
+    description = calcjob.describe_calcjob("chemshell")
+    outputs = {port["name"]: port for port in description["outputs"]}
+
+    assert "energy" in outputs
+    assert "optimised_structure" in outputs
+    assert "retrieved" not in outputs
+
+
+def test_describe_chemshell_exit_codes():
+    """describe_calcjob reports the ChemShell-specific exit codes."""
+    description = calcjob.describe_calcjob("chemshell")
+    statuses = {code["status"]: code["name"] for code in description["exit_codes"]}
+
+    assert statuses[300] == "ERROR_STDOUT_NOT_FOUND"
+
+
+def test_describe_chemshell_option_defaults():
+    """describe_calcjob reports the metadata option defaults the plugin changed."""
+    defaults = calcjob.describe_calcjob("chemshell")["metadata_option_defaults"]
+
+    assert defaults["parser_name"] == "chemshell"
+    assert defaults["resources"] == {"num_machines": 1, "num_mpiprocs_per_machine": 4}
+
+
+def test_chemshell_register_adds_tool():
+    """register() adds the ChemShell describe and submit tools."""
+    server = MCPServer("test")
+    chemshell.register(server)
+    assert _tool_names(server) == {
+        "describe_chemshell_calcjob",
+        "submit_chemshell_job",
+    }
+
+
 def test_describe_unknown_plugin_is_tool_error():
     """Describing an uninstalled plugin is a ToolError."""
     with pytest.raises(ToolError, match="not installed"):
@@ -74,7 +124,7 @@ def test_register_all_registers_installed_plugins():
     server = MCPServer("test")
     registered = plugins.register_all(server)
 
-    assert registered == ["aiida_mcp.plugins.dlpoly"]
+    assert "aiida_mcp.plugins.dlpoly" in registered
     assert "describe_dlpoly_calcjob" in _tool_names(server)
 
 
@@ -84,5 +134,5 @@ def test_register_all_skips_plugin_that_is_not_installed():
     with mock.patch.object(dlpoly, "is_available", return_value=False):
         registered = plugins.register_all(server)
 
-    assert registered == []
-    assert _tool_names(server) == set()
+    assert "aiida_mcp.plugins.dlpoly" not in registered
+    assert "describe_dlpoly_calcjob" not in _tool_names(server)

@@ -25,6 +25,8 @@ def test_all_tools_are_registered():
         "list_profiles",
         "describe_dlpoly_calcjob",
         "submit_dlpoly_job",
+        "describe_chemshell_calcjob",
+        "submit_chemshell_job",
     }
 
 
