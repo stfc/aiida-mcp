@@ -12,24 +12,21 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - [Running the server](#running-the-server)
 - [Connecting a client](#connecting-a-client)
 - [Tools](#tools)
-- [Submitting a DL_POLY job](#submitting-a-dl_poly-job)
-- [Submitting a ChemShell job](#submitting-a-chemshell-job)
-- [Submitting an MLIP job](#submitting-an-mlip-job)
-- [Managing profiles](#managing-profiles)
+- [Submitting a job](#submitting-a-job)
 - [Detecting AiiDAlab](#detecting-aiidalab)
 - [Development and tests](#development-and-tests)
 - [Troubleshooting](#troubleshooting)
 
 ## Requirements
 
-- Python 3.10 or newer. The project is developed and tested on Python 3.14 only.
+- Python 3.12 or newer. The project is developed and tested on Python 3.14 only.
 - `aiida-core` and `mcp`, which are installed as dependencies.
 - For DL_POLY jobs: a compiled DL_POLY executable and the optional `aiida-dlpoly` plugin.
 - For ChemShell jobs: a compiled ChemShell executable and the optional `aiida-chemshell` plugin.
 - For MLIP jobs: the `janus-core` CLI (`janus`) and the optional `aiida-mlip` plugin.
 - For AiiDAlab detection: the optional `jupyter-server` dependency (already present if installed alongside AiiDAlab itself).
 
-You do not need PostgreSQL or RabbitMQ. The setup below uses SQLite and the ZeroMQ broker that AiiDA includes.
+You do not need PostgreSQL or RabbitMQ to get started — `verdi presto` sets up a profile using SQLite and the ZeroMQ broker that AiiDA includes, with no other services required. See [Setting up AiiDA](#setting-up-aiida).
 
 ## Installation
 
@@ -62,114 +59,16 @@ aiida-mcp --help
 
 ## Setting up AiiDA
 
-The server reads the **default AiiDA profile** from `~/.aiida` (or from the directory in the `AIIDA_PATH` environment variable). If you already have a working profile, skip to [Check the profile](#check-the-profile).
+The server needs a working AiiDA profile and daemon to run against, and (for the plugin tools) a code
+registered for each executable you want to use. This is standard AiiDA usage, not specific to this
+project, so it's covered in full by the [AiiDA documentation](https://aiida.readthedocs.io/projects/aiida-core/en/latest/intro/get_started.html)
+(profile and daemon setup) and this project's own [full documentation](https://stfc.github.io/aiida-mcp/)
+(profile setup plus registering DL_POLY, ChemShell and MLIP codes specifically).
 
-### Create a profile
-
-The quickest option is `verdi presto`. It creates a profile that uses SQLite and needs no other services, makes it the default, and configures `localhost` as a computer:
-
-```bash
-verdi presto --profile-name presto
-```
-
-If RabbitMQ is running on localhost, `verdi presto` uses it. Otherwise it uses the ZeroMQ broker, which starts with the daemon. For more control, for example PostgreSQL, see `verdi presto --help` and `verdi profile setup`.
-
-### Start the daemon
-
-The daemon runs submitted jobs. Without it, jobs wait in the queue and never run.
-
-```bash
-verdi daemon start
-```
-
-### Check the profile
-
-```bash
-verdi profile list        # the default profile is marked with *
-verdi status              # profile, storage, broker and daemon
-verdi computer list       # should list localhost
-```
-
-To change the default profile, which is the one the server uses:
-
-```bash
-verdi profile set-default <name>
-```
-
-The server always loads the default profile. If you need it to use another one, change the default before starting the server, or set `AIIDA_PATH` to a different configuration directory.
-
-### Set up a DL_POLY code
-
-Only needed for `submit_dlpoly_job`. Register your DL_POLY executable as a code on the computer it runs on. Use the absolute path to the executable and double-check it exists, because a wrong path only fails when a job runs.
-
-```bash
-verdi code create core.code.installed \
-    --label dl_poly \
-    --computer localhost \
-    --filepath-executable /path/to/DLPOLY.Z \
-    --default-calc-job-plugin dlpoly \
-    --no-with-mpi \
-    --non-interactive
-```
-
-Notes:
-
-- Drop `--no-with-mpi` and add `--with-mpi` to launch through `mpirun`. In the setup this was developed on, the code ran correctly without `--with-mpi`.
-- If your system needs environment modules, add `--prepend-text "module load mpi"` (adjust to your system).
-- A stored code's executable path cannot be edited. To fix a wrong path, create a new code, or use `verdi code duplicate`.
-
-Check it:
-
-```bash
-verdi code list
-verdi code show dl_poly
-```
-
-### Set up a ChemShell code
-
-Only needed for `submit_chemshell_job`. Register your ChemShell executable as a code on the computer it runs on.
-
-```bash
-verdi code create core.code.installed \
-    --label chemsh \
-    --computer localhost \
-    --filepath-executable /absolute/path/to/chemsh \
-    --default-calc-job-plugin chemshell \
-    --no-with-mpi \
-    --non-interactive
-```
-
-Notes:
-
-- Whether to pass `--with-mpi` depends on which executable you point at, not on whether your ChemShell build is MPI-enabled: use `--no-with-mpi` for the `chemsh` wrapper script (it handles launching MPI itself), and `--with-mpi` if you point directly at `chemsh.x`.
-- A stored code's executable path cannot be edited. To fix a wrong path, create a new code, or use `verdi code duplicate`.
-
-Check it:
-
-```bash
-verdi code list
-verdi code show chemsh
-```
-
-### Set up an MLIP code
-
-Only needed for the `submit_mlip_*_job` tools. Register the `janus` executable (from `janus-core`) as a code. The same code can be used for all four MLIP job types; `--default-calc-job-plugin` is just the CLI's default suggestion and does not restrict which entry point the code can be submitted with.
-
-```bash
-verdi code create core.code.installed \
-    --label janus \
-    --computer localhost \
-    --filepath-executable "$(which janus)" \
-    --default-calc-job-plugin mlip.sp \
-    --non-interactive
-```
-
-Check it:
-
-```bash
-verdi code list
-verdi code show janus
-```
+The one detail specific to this server: it reads the **default AiiDA profile** from `~/.aiida` (or from
+the directory in the `AIIDA_PATH` environment variable). Change the default profile with
+`verdi profile set-default <name>`, or point `AIIDA_PATH` at a different configuration directory, before
+starting the server.
 
 ## Running the server
 
@@ -211,7 +110,7 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 ### Read-only
 
 | Tool | What it does |
-|------|--------------|
+| ------ | -------------- |
 | `ping` | Checks the server is running. |
 | `get_status` | Reports the loaded profile, daemon state and broker connection. |
 | `list_processes` | Lists process nodes, newest first. Filters: `state`, `label`, `created_after`, `limit`. |
@@ -225,10 +124,7 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 | `get_aiidalab_status` | Reports whether an AiiDAlab server is running locally, and its URL. See [Detecting AiiDAlab](#detecting-aiidalab). |
 | `describe_dlpoly_calcjob` | Describes the DL_POLY calcjob: inputs, outputs, exit codes, default options. |
 | `describe_chemshell_calcjob` | Describes the ChemShell calcjob: inputs, outputs, exit codes, default options. |
-| `describe_mlip_sp_calcjob` | Describes the MLIP single point calcjob: inputs, outputs, exit codes, default options. |
-| `describe_mlip_opt_calcjob` | Describes the MLIP geometry optimisation calcjob. |
-| `describe_mlip_md_calcjob` | Describes the MLIP molecular dynamics calcjob. |
-| `describe_mlip_ph_calcjob` | Describes the MLIP phonon calcjob. |
+| `describe_mlip_*_calcjob` | Describes the MLIP calcjob: inputs, outputs, exit codes, default options. |
 
 Notes:
 
@@ -244,174 +140,22 @@ Notes:
 |------|--------------|
 | `submit_dlpoly_job` | Builds and submits a DL_POLY calculation to the daemon. |
 | `submit_chemshell_job` | Builds and submits a ChemShell calculation to the daemon. |
-| `submit_mlip_sp_job` | Builds and submits an MLIP single point calculation to the daemon. |
-| `submit_mlip_opt_job` | Builds and submits an MLIP geometry optimisation to the daemon. |
-| `submit_mlip_md_job` | Builds and submits an MLIP molecular dynamics run to the daemon. |
-| `submit_mlip_ph_job` | Builds and submits an MLIP phonon calculation to the daemon. |
-| `create_profile` *(currently disabled)* | Creates a new AiiDA profile and initialises its storage. See [Managing profiles](#managing-profiles). |
-| `switch_profile` *(currently disabled)* | Switches the server's active AiiDA profile. See [Managing profiles](#managing-profiles). |
+| `submit_mlip_*_job` | Builds and submits an MLIP calculation to the daemon. |
 
-## Submitting a DL_POLY job
+## Submitting a job
 
-`submit_dlpoly_job` takes:
+Each supported package has its own submit tool(s), argument reference and worked example in the full
+documentation:
 
-| Argument | Meaning |
-|----------|---------|
-| `code` | Label (e.g. `dl_poly@localhost`) or PK of the DL_POLY code. |
-| `configuration` | The CONFIG file, or a `StructureData` node. |
-| `field` | The FIELD file. |
-| `control` | The CONTROL file, or a dict of parameters. |
-| `num_machines` | Machines to run on. Default 1. |
-| `num_mpiprocs_per_machine` | MPI processes per machine. Default 1. |
-| `label` | Optional label to set on the calcjob node. |
-| `description` | Optional description to set on the calcjob node. |
+- [**DL_POLY**](https://stfc.github.io/aiida-mcp/tools.html#submitting-a-dl-poly-job).
+- [**ChemShell**](https://stfc.github.io/aiida-mcp/tools.html#submitting-a-chemshell-job).
+- [**MLIP**](https://stfc.github.io/aiida-mcp/tools.html#submitting-an-mlip-job).
 
-Each of `configuration`, `field` and `control` takes **exactly one** of:
-
-- `path`: a file on the machine running the server,
-- `text`: the file contents as a string,
-- `pk`: an existing node in the database. `configuration` accepts `SinglefileData` or `StructureData`, `field` accepts `SinglefileData`, and `control` accepts `SinglefileData` or `Dict`.
-
-`control` also accepts `parameters`, a dictionary stored as a `Dict` node.
-
-Example arguments:
-
-```json
-{
-  "code": "dl_poly@localhost",
-  "configuration": {"path": "/data/TEST001/CONFIG"},
-  "field": {"path": "/data/TEST001/FIELD"},
-  "control": {"path": "/data/TEST001/CONTROL"}
-}
-```
-
-Behaviour:
-
-- The inputs are checked against the calcjob definition before anything is stored. A bad input returns an error and creates no nodes.
-- On success the tool returns the process PK and the PKs of the input nodes. Follow the job with `get_process` and `get_process_report`.
-- If the daemon is stopped, the job is created and waits until the daemon starts. The result says so.
-- Large files are stored in the AiiDA repository. A CONFIG file of about 8 MB is stored in full.
-- The server does not wait for the job to finish.
-
-A typical session: call `get_status`, call `list_codes` to find the code, call `submit_dlpoly_job`, then poll `get_process` until `state` is `finished` and check `exit_status`. An `exit_status` of 0 means success. Other values are listed by `describe_dlpoly_calcjob`.
-
-## Submitting a ChemShell job
-
-`submit_chemshell_job` takes:
-
-| Argument | Meaning |
-|----------|---------|
-| `code` | Label (e.g. `chemsh@localhost`) or PK of the ChemShell code. |
-| `structure` | The input structure. |
-| `structure_index` | Index to extract one structure from a multi-structure `TrajectoryData` input. |
-| `structure2` | A second input structure, e.g. the final structure for a NEB optimisation. |
-| `calculation_parameters` | Dict of parameters for the ChemShell Task object. |
-| `optimisation_parameters` | Dict of parameters for a geometry optimisation task. Providing this configures an optimisation task. |
-| `qm_parameters` | Dict of parameters for the QM Theory object. |
-| `mm_parameters` | Dict of parameters for the MM interface. |
-| `qmmm_parameters` | Dict of parameters for the QM/MM interface. |
-| `force_field_file` | File with force field parameters for the MM interface. |
-| `output_structure_as_file` | If true, return the optimised structure as a `.cjson` file instead of a `StructureData` node. Default false. |
-| `num_machines` | Machines to run on. Default 1. |
-| `num_mpiprocs_per_machine` | MPI processes per machine. Default 4. |
-| `label` | Optional label to set on the calcjob node. |
-| `description` | Optional description to set on the calcjob node. |
-
-`structure`, `structure2` and `force_field_file` each take **exactly one** of:
-
-- `path`: a file on the machine running the server,
-- `text`: the file contents as a string,
-- `pk`: an existing node in the database. `structure`/`structure2` accept `SinglefileData` (a `.xyz`, `.pun` or `.cjson` file), `StructureData`, or `TrajectoryData`; `force_field_file` accepts `SinglefileData`.
-
-`calculation_parameters`, `optimisation_parameters`, `qm_parameters`, `mm_parameters` and `qmmm_parameters` each take `parameters`, a dictionary stored as a `Dict` node (or `pk` of an existing `Dict` node).
-
-Example arguments:
-
-```json
-{
-  "code": "chemsh@localhost",
-  "structure": {"path": "/data/system.xyz"},
-  "qm_parameters": {"parameters": {"theory": "nwchem", "basis": "6-31G"}},
-  "optimisation_parameters": {"parameters": {}}
-}
-```
-
-Behaviour is the same as `submit_dlpoly_job`: inputs are validated before anything is stored, the tool returns the process PK and the PKs of the input nodes it created, and a stopped daemon just means the job waits. Follow the job with `get_process` and `get_process_report`, and check `exit_status` against the codes listed by `describe_chemshell_calcjob`.
-
-## Submitting an MLIP job
-
-There are four MLIP tools — `submit_mlip_sp_job` (single point), `submit_mlip_opt_job` (geometry optimisation), `submit_mlip_md_job` (molecular dynamics) and `submit_mlip_ph_job` (phonons) — sharing the same core arguments, plus arguments specific to each job type.
-
-Shared arguments:
-
-| Argument | Meaning |
-|----------|---------|
-| `code` | Label (e.g. `janus@localhost`) or PK of the MLIP code. |
-| `structure` | Path to a structure file on the machine running the server, or the PK of an existing `StructureData` node. |
-| `model` | Path or URL of the MLIP model file, or the PK of an existing `ModelData` node. If omitted, the code's own default model for `architecture` is used. |
-| `architecture` | MLIP architecture, e.g. `mace_mp`. Required unless `model` is the PK of an existing `ModelData` node, which already carries its own architecture. |
-| `device` | Device to run on: `cpu`, `cuda` or `mps`. |
-| `calc_kwargs` | Extra keyword arguments to pass to the selected calculator. |
-| `num_machines` | Machines to run on. Default 1. |
-| `num_mpiprocs_per_machine` | MPI processes per machine. Default 1. |
-| `label` | Optional label to set on the calcjob node. |
-| `description` | Optional description to set on the calcjob node. |
-
-Unlike `configuration`/`field`/`control` in `submit_dlpoly_job`, `structure` and `model` are plain strings or PKs, not `{"path": ...}`/`{"pk": ...}` objects — MLIP's own structure/model loading helpers are reused directly, and they already accept either form as a single value.
-
-Job-specific arguments:
-
-- `submit_mlip_sp_job`: `out` (xyz output filename), `properties` (list of properties to calculate, e.g. `["energy", "forces"]`).
-- `submit_mlip_opt_job`: `opt_cell_fully`, `opt_cell_lengths` (bools), `fmax` (float), `steps` (int), `minimize_kwargs` (dict), `pressure` (float, GPa).
-- `submit_mlip_md_job`: `ensemble` (str, e.g. `NVT`), `md_kwargs` (dict).
-- `submit_mlip_ph_job`: `out`, `supercell`, `qpoint_file` (str), `n_qpoints` (int), `displacement` (float), `no_hdf5`, `dos`, `pdos`, `bands`, `symmetrize` (bools).
-
-Example arguments for a single point calculation:
-
-```json
-{
-  "code": "janus@localhost",
-  "structure": "/data/structure.xyz",
-  "architecture": "mace_mp",
-  "properties": ["energy", "forces"]
-}
-```
-
-Behaviour is the same as `submit_dlpoly_job`: inputs are validated before anything is stored, the tool returns the process PK and the PKs of the input nodes it created, and a stopped daemon just means the job waits. Follow the job with `get_process` and `get_process_report`, and check `exit_status` against the codes listed by the matching `describe_mlip_*_calcjob` tool.
-
-## Managing profiles
-
-> `create_profile` and `switch_profile` are currently disabled (commented out in `server.py`). `list_profiles` is still available.
-
-The server always runs against one loaded profile (see [Setting up AiiDA](#setting-up-aiida)), but it can also create and switch between profiles at runtime:
-
-| Argument | Meaning |
-|----------|---------|
-| `name` | Name for the new profile. |
-| `email` | Default user's email. Required unless `storage_backend` is read-only. |
-| `storage_backend` | Storage entry point. Defaults to `core.sqlite_dos`, which needs no external services. `core.psql_dos` (PostgreSQL) is also available. |
-| `storage_config` | Backend-specific configuration, e.g. `{"filepath": "/path/to/dir"}` for `core.sqlite_dos`, or `database_username`/`database_password`/`database_name`/`repository_uri` for `core.psql_dos`. Unset fields fall back to the backend's defaults. |
-| `broker` | Message broker: `none` (default), `core.rabbitmq` or `core.zeromq`. |
-| `first_name`, `last_name`, `institution` | Optional details for the default user. |
-| `set_as_default` | Makes the new profile the on-disk default, used the next time the server starts. |
-
-Example:
-
-```json
-{
-  "name": "scratch",
-  "email": "me@example.com",
-  "storage_config": {"filepath": "/data/aiida-scratch"}
-}
-```
-
-`create_profile` only creates and initialises the profile; it does not change which profile the running server uses. Call `switch_profile` with the profile's `name` for that. `list_profiles` shows what is configured, which one is the default, and which one the server currently has loaded.
-
-Behaviour:
-
-- `create_profile` fails if a profile with that `name` already exists, if `storage_backend` or `broker` is not recognised, or if `email` is missing for a non-read-only backend. Nothing is left behind on failure.
-- `switch_profile` fails if `name` does not match a configured profile. On success it loads the profile and initialises its storage, so the next call may take a moment.
-- Switching profiles affects every subsequent tool call on the server, including from other clients connected to the same server process.
+All of them share the same behaviour: inputs are validated against the calcjob definition before
+anything is stored (a bad input returns an error and creates no nodes), a successful call returns the
+process PK and the PKs of the input nodes it created, and a stopped daemon just means the job waits
+rather than failing. Follow a submitted job with `get_process` and `get_process_report`, and check
+`exit_status` against the codes listed by the matching `describe_*_calcjob` tool.
 
 ## Detecting AiiDAlab
 
