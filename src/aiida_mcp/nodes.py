@@ -13,6 +13,7 @@ from aiida_mcp.limits import clamp_limit
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 200
 MAX_FILE_BYTES = 1_000_000
+MAX_ARRAY_ROWS = 1_000
 
 
 def _computer_summary(computer: orm.Computer) -> dict[str, Any]:
@@ -175,7 +176,8 @@ def get_node_content(pk: int) -> dict[str, Any]:
     -------
     dict[str, Any]
         The node's content. The exact shape depends on the node type; see
-        `_singlefile_content` and `_value_content`.
+        `_singlefile_content`, `_value_content`, `_dict_content` and
+        `_array_content`.
 
     Raises
     ------
@@ -232,8 +234,42 @@ def _value_content(node: orm.Int | orm.Float) -> dict[str, Any]:
     }
 
 
+def _dict_content(node: orm.Dict) -> dict[str, Any]:
+    return {
+        "pk": node.pk,
+        "uuid": node.uuid,
+        "node_type": node.node_type,
+        "content": node.get_dict(),
+    }
+
+
+def _array_content(node: orm.ArrayData) -> dict[str, Any]:
+    arrays = {
+        name: _array_summary(node.get_array(name)) for name in node.get_arraynames()
+    }
+    return {
+        "pk": node.pk,
+        "uuid": node.uuid,
+        "node_type": node.node_type,
+        "arrays": arrays,
+    }
+
+
+def _array_summary(array: Any) -> dict[str, Any]:
+    truncated = array.ndim > 0 and array.shape[0] > MAX_ARRAY_ROWS
+    values = array[:MAX_ARRAY_ROWS] if truncated else array
+    return {
+        "shape": list(array.shape),
+        "dtype": str(array.dtype),
+        "truncated": truncated,
+        "values": values.tolist(),
+    }
+
+
 _CONTENT_READERS = {
     orm.SinglefileData: _singlefile_content,
     orm.Int: _value_content,
     orm.Float: _value_content,
+    orm.Dict: _dict_content,
+    orm.ArrayData: _array_content,
 }

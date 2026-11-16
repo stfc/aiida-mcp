@@ -173,7 +173,9 @@ def get_node_content(pk: int) -> dict:
 
     Currently supported: SinglefileData (decoded as text when possible;
     content over 1 MB is truncated, and undecodable files are returned
-    base64-encoded), Int and Float (returned as their numeric value).
+    base64-encoded), Int and Float (returned as their numeric value), Dict
+    (returned as its dictionary), and ArrayData (returned as its named
+    arrays; arrays over 1000 rows along their first axis are truncated).
 
     Parameters
     ----------

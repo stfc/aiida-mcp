@@ -171,6 +171,46 @@ def test_get_node_content_returns_float_value():
     assert result["content"] == 3.14
 
 
+def test_get_node_content_returns_dict_value():
+    """get_node_content returns a Dict node's dictionary."""
+    node = orm.Dict({"a": 1, "b": [1, 2, 3]}).store()
+    result = nodes.get_node_content(node.pk)
+    assert result["content"] == {"a": 1, "b": [1, 2, 3]}
+
+
+def test_get_node_content_returns_array_values():
+    """get_node_content returns an ArrayData node's named arrays."""
+    import numpy
+
+    node = orm.ArrayData()
+    node.set_array("x", numpy.array([1, 2, 3]))
+    node.set_array("y", numpy.array([[1.0, 2.0], [3.0, 4.0]]))
+    node.store()
+
+    result = nodes.get_node_content(node.pk)
+    assert set(result["arrays"]) == {"x", "y"}
+    assert result["arrays"]["x"]["shape"] == [3]
+    assert result["arrays"]["x"]["values"] == [1, 2, 3]
+    assert result["arrays"]["x"]["truncated"] is False
+    assert result["arrays"]["y"]["shape"] == [2, 2]
+    assert result["arrays"]["y"]["values"] == [[1.0, 2.0], [3.0, 4.0]]
+
+
+def test_get_node_content_truncates_large_arrays(monkeypatch):
+    """get_node_content truncates arrays over MAX_ARRAY_ROWS along their first axis."""
+    import numpy
+
+    monkeypatch.setattr(nodes, "MAX_ARRAY_ROWS", 2)
+    node = orm.ArrayData()
+    node.set_array("x", numpy.array([1, 2, 3, 4]))
+    node.store()
+
+    result = nodes.get_node_content(node.pk)
+    assert result["arrays"]["x"]["truncated"] is True
+    assert result["arrays"]["x"]["values"] == [1, 2]
+    assert result["arrays"]["x"]["shape"] == [4]
+
+
 def test_get_node_content_rejects_missing_node():
     """Looking up a nonexistent PK is a ToolError."""
     with pytest.raises(ToolError, match="No node with pk"):

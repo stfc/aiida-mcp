@@ -220,7 +220,7 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 | `list_computers` | Lists configured computers. |
 | `list_codes` | Lists codes, optionally for one `computer`. |
 | `query_nodes` | Finds nodes by `node_type` prefix, `group` label and `extra_key`. |
-| `get_node_content` | Returns the content of a node: file content for `SinglefileData`, the value for `Int`/`Float`. |
+| `get_node_content` | Returns the content of a node: file content for `SinglefileData`, the value for `Int`/`Float`, the dictionary for `Dict`, the named arrays for `ArrayData`. |
 | `list_profiles` | Lists all configured AiiDA profiles, showing the current and default ones. |
 | `get_aiidalab_status` | Reports whether an AiiDAlab server is running locally, and its URL. See [Detecting AiiDAlab](#detecting-aiidalab). |
 | `describe_dlpoly_calcjob` | Describes the DL_POLY calcjob: inputs, outputs, exit codes, default options. |
@@ -235,7 +235,7 @@ Notes:
 - List tools take a `limit`. The default is 20 (100 for logs), the maximum is 200 (1000 for logs), and a value below 1 is an error.
 - `list_processes` states are `created`, `waiting`, `running`, `finished`, `excepted` and `killed`.
 - If the daemon is stopped, `get_status` does not check the broker, because connecting would block.
-- `get_node_content` only supports `SinglefileData`, `Int` and `Float` nodes so far; other node types return an error naming the supported ones. File content over 1 MB is truncated, and content that cannot be decoded as UTF-8 text is returned base64-encoded.
+- `get_node_content` only supports `SinglefileData`, `Int`, `Float`, `Dict` and `ArrayData` nodes so far; other node types return an error naming the supported ones. File content over 1 MB is truncated, content that cannot be decoded as UTF-8 text is returned base64-encoded, and each array in an `ArrayData` over 1000 rows along its first axis is truncated.
 - Errors the caller can fix, such as an unknown state or a missing PK, are returned as short messages.
 
 ### Write
