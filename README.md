@@ -438,6 +438,8 @@ pytest
 
 The tests create a temporary SQLite profile in a temporary directory, using AiiDA's own pytest fixtures. They do not touch your `~/.aiida` configuration or your profiles. The tests that submit jobs mock the submit call, so no DL_POLY job runs.
 
+CI (`.github/workflows/ci-testing.yml`) runs `ruff check`/`ruff format --check`, then the full test suite with every plugin extra installed (`.[dlpoly,chemshell,mlip,aiidalab,test]`) on Python 3.12 and 3.13; `test_all_tools_are_registered` in `tests/test_server.py` expects that full set of extras. `.github/workflows/ci-docs.yml` builds the Sphinx docs on every push and pull request, and publishes them to GitHub Pages on pushes to `main` (requires enabling Pages with source "GitHub Actions" in the repository settings once).
+
 Layout:
 
 ```

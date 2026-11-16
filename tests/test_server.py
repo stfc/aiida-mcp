@@ -27,6 +27,14 @@ def test_all_tools_are_registered():
         "submit_dlpoly_job",
         "describe_chemshell_calcjob",
         "submit_chemshell_job",
+        "describe_mlip_sp_calcjob",
+        "describe_mlip_opt_calcjob",
+        "describe_mlip_md_calcjob",
+        "describe_mlip_ph_calcjob",
+        "submit_mlip_sp_job",
+        "submit_mlip_opt_job",
+        "submit_mlip_md_job",
+        "submit_mlip_ph_job",
     }
 
 

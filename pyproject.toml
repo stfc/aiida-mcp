@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "aiida-mcp"
 version = "0.1.0"
 description = "MCP server for ALC's AiiDA projects"
+readme = "README.md"
+license = { file = "LICENSE" }
 authors = [
     { name = "Dr. Benjamin T. Speake", email = "benjamin.speake@stfc.ac.uk" },
     { name = "Joseph Thacker", email = "joseph.thacker@stfc.ac.uk" },
@@ -17,6 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 requires-python = ">=3.12"
+dependencies = ["mcp", "aiida-core>=2.7.4,<3"]
 
 [project.optional-dependencies]
 dlpoly = ["aiida-dlpoly"]
@@ -24,7 +27,7 @@ chemshell = ["aiida-chemshell"]
 mlip = ["aiida-mlip"]
 aiidalab = ["jupyter-server"]
 docs = ["sphinx>=8.0.2", "piccolo-theme>=0.14.0", "sphinx-toolbox", "numpydoc"]
-test = ["pytest"]
+test = ["pytest", "pytest-cov"]
 
 [project.scripts]
 aiida-mcp = "aiida_mcp.server:main"
