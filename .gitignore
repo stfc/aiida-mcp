@@ -15,3 +15,6 @@ venv/
 
 # Formatting tools
 .ruff_cache/
+
+# Generated Sphinx documentation
+docs/source/api/
