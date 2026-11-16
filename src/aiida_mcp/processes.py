@@ -37,7 +37,30 @@ def list_processes(
     created_after: str | None = None,
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, Any]:
-    """List process nodes, newest first, with optional filters."""
+    """List process nodes, newest first, with optional filters.
+
+    Parameters
+    ----------
+    state : str or None
+        Process state to filter by. One of `PROCESS_STATES`.
+    label : str or None
+        Exact process label to match.
+    created_after : str or None
+        ISO date or datetime; only include processes created at or after it.
+    limit : int
+        Maximum number of processes to return.
+
+    Returns
+    -------
+    dict[str, Any]
+        The number of matching processes, the number returned, and a
+        summary of each one.
+
+    Raises
+    ------
+    ToolError
+        If `state` is not one of `PROCESS_STATES`.
+    """
     connection.ensure_profile()
 
     if state is not None and state not in PROCESS_STATES:
@@ -70,7 +93,24 @@ def list_processes(
 
 
 def get_process(pk: int) -> dict[str, Any]:
-    """Return details, inputs and outputs for one process node."""
+    """Return details, inputs and outputs for one process node.
+
+    Parameters
+    ----------
+    pk : int
+        Primary key of the process node.
+
+    Returns
+    -------
+    dict[str, Any]
+        The process's details, plus summaries of its incoming and outgoing
+        links.
+
+    Raises
+    ------
+    ToolError
+        If no node exists with the given PK, or it is not a process node.
+    """
     connection.ensure_profile()
     node = _load_process(pk)
 
@@ -83,7 +123,26 @@ def get_process(pk: int) -> dict[str, Any]:
 
 
 def get_process_report(pk: int, limit: int = DEFAULT_LOG_LIMIT) -> dict[str, Any]:
-    """Return the most recent log messages for one process node, oldest first."""
+    """Return the most recent log messages for one process node, oldest first.
+
+    Parameters
+    ----------
+    pk : int
+        Primary key of the process node.
+    limit : int
+        Maximum number of log entries to return.
+
+    Returns
+    -------
+    dict[str, Any]
+        The total number of log entries, the number returned, and the log
+        entries themselves.
+
+    Raises
+    ------
+    ToolError
+        If no node exists with the given PK, or it is not a process node.
+    """
     connection.ensure_profile()
     node = _load_process(pk)
     limit = clamp_limit(limit, DEFAULT_LOG_LIMIT, MAX_LOG_LIMIT)

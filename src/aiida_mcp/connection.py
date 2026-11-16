@@ -12,7 +12,13 @@ _lock = threading.Lock()
 
 
 def lock() -> threading.Lock:
-    """Return the lock guarding profile load and switch operations."""
+    """Return the lock guarding profile load and switch operations.
+
+    Returns
+    -------
+    threading.Lock
+        The lock used to serialise profile load and switch operations.
+    """
     return _lock
 
 
@@ -25,7 +31,15 @@ def ensure_profile() -> None:
 
 
 def get_status() -> dict[str, Any]:
-    """Report the AiiDA profile, daemon and broker status without raising."""
+    """Report the AiiDA profile, daemon and broker status without raising.
+
+    Returns
+    -------
+    dict[str, Any]
+        Whether a profile is loaded, the daemon state, and broker
+        connectivity. If loading the profile fails, only ``profile_loaded``
+        and ``error`` are present.
+    """
     try:
         ensure_profile()
     except Exception as exc:

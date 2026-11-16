@@ -12,7 +12,18 @@ PLUGIN_MODULES = (
 
 
 def register_all(mcp: MCPServer) -> list[str]:
-    """Register the tools of every installed plugin and return the ones registered."""
+    """Register the tools of every installed plugin and return the ones registered.
+
+    Parameters
+    ----------
+    mcp : MCPServer
+        The server to register plugin tools on.
+
+    Returns
+    -------
+    list[str]
+        Dotted module names of the plugins that were registered.
+    """
     registered = []
     for name in PLUGIN_MODULES:
         module = importlib.import_module(name)

@@ -11,13 +11,26 @@ mcp = MCPServer("aiida-mcp")
 
 @mcp.tool()
 def ping() -> str:
-    """Check that the server is running."""
+    """Check that the server is running.
+
+    Returns
+    -------
+    str
+        Always ``"pong"``.
+    """
     return "pong"
 
 
 @mcp.tool()
 def get_status() -> dict:
-    """Report the AiiDA profile, daemon and broker status."""
+    """Report the AiiDA profile, daemon and broker status.
+
+    Returns
+    -------
+    dict
+        Whether a profile is loaded, the daemon state, and broker
+        connectivity.
+    """
     return connection.get_status()
 
 
@@ -30,10 +43,22 @@ def list_processes(
 ) -> dict:
     """List AiiDA process nodes, newest first.
 
-    state: one of created, waiting, running, finished, excepted, killed.
-    label: exact process label to match.
-    created_after: ISO date or datetime, e.g. 2026-11-01 or 2026-11-01T09:00:00.
-    limit: maximum number of processes to return (capped at 200).
+    Parameters
+    ----------
+    state : str or None
+        One of created, waiting, running, finished, excepted, killed.
+    label : str or None
+        Exact process label to match.
+    created_after : str or None
+        ISO date or datetime, e.g. 2026-11-01 or 2026-11-01T09:00:00.
+    limit : int
+        Maximum number of processes to return (capped at 200).
+
+    Returns
+    -------
+    dict
+        The number of matching processes, the number returned, and a
+        summary of each one.
     """
     return processes.list_processes(
         state=state, label=label, created_after=created_after, limit=limit
@@ -42,7 +67,19 @@ def list_processes(
 
 @mcp.tool()
 def get_process(pk: int) -> dict:
-    """Show details, inputs and outputs for one process node by PK."""
+    """Show details, inputs and outputs for one process node by PK.
+
+    Parameters
+    ----------
+    pk : int
+        Primary key of the process node.
+
+    Returns
+    -------
+    dict
+        The process's details, plus summaries of its incoming and outgoing
+        links.
+    """
     return processes.get_process(pk)
 
 
@@ -50,14 +87,31 @@ def get_process(pk: int) -> dict:
 def get_process_report(pk: int, limit: int = 100) -> dict:
     """Show the most recent log messages for one process node by PK, oldest first.
 
-    limit: maximum number of log entries to return (capped at 1000).
+    Parameters
+    ----------
+    pk : int
+        Primary key of the process node.
+    limit : int
+        Maximum number of log entries to return (capped at 1000).
+
+    Returns
+    -------
+    dict
+        The total number of log entries, the number returned, and the log
+        entries themselves.
     """
     return processes.get_process_report(pk, limit=limit)
 
 
 @mcp.tool()
 def list_computers() -> dict:
-    """List all configured computers."""
+    """List all configured computers.
+
+    Returns
+    -------
+    dict
+        The total number of computers and a summary of each one.
+    """
     return nodes.list_computers()
 
 
@@ -65,8 +119,18 @@ def list_computers() -> dict:
 def list_codes(computer: str | None = None, limit: int = 20) -> dict:
     """List codes, optionally only those on one computer.
 
-    computer: computer label to filter by.
-    limit: maximum number of codes to return (capped at 200).
+    Parameters
+    ----------
+    computer : str or None
+        Computer label to filter by.
+    limit : int
+        Maximum number of codes to return (capped at 200).
+
+    Returns
+    -------
+    dict
+        The number of matching codes, the number returned, and a summary of
+        each one.
     """
     return nodes.list_codes(computer=computer, limit=limit)
 
@@ -80,11 +144,23 @@ def query_nodes(
 ) -> dict:
     """Query nodes, newest first.
 
-    node_type: node type prefix, e.g. data.core.int or process.calculation. A trailing %
-        is optional.
-    group: group label to restrict results to.
-    extra_key: only nodes that have this extras key.
-    limit: maximum number of nodes to return (capped at 200).
+    Parameters
+    ----------
+    node_type : str or None
+        Node type prefix, e.g. data.core.int or process.calculation. A
+        trailing % is optional.
+    group : str or None
+        Group label to restrict results to.
+    extra_key : str or None
+        Only include nodes that have this extras key.
+    limit : int
+        Maximum number of nodes to return (capped at 200).
+
+    Returns
+    -------
+    dict
+        The number of matching nodes, the number returned, and a summary of
+        each one.
     """
     return nodes.query_nodes(
         node_type=node_type, group=group, extra_key=extra_key, limit=limit
@@ -95,11 +171,19 @@ def query_nodes(
 def get_node_content(pk: int) -> dict:
     """Return the content of a node, for node types where that is supported.
 
-    pk: primary key of the node.
-
     Currently supported: SinglefileData (decoded as text when possible;
     content over 1 MB is truncated, and undecodable files are returned
     base64-encoded), Int and Float (returned as their numeric value).
+
+    Parameters
+    ----------
+    pk : int
+        Primary key of the node.
+
+    Returns
+    -------
+    dict
+        The node's content, in a shape that depends on its type.
     """
     return nodes.get_node_content(pk)
 
@@ -110,13 +194,26 @@ def get_aiidalab_status() -> dict:
 
     Looks for a running Jupyter server whose working directory looks like an
     AiiDAlab home directory. The returned URL includes the access token.
+
+    Returns
+    -------
+    dict
+        Whether a server is running and, if so, its URL, pid, root
+        directory and version.
     """
     return aiidalab.get_status()
 
 
 @mcp.tool()
 def list_profiles() -> dict:
-    """List all configured AiiDA profiles, showing the current and default ones."""
+    """List all configured AiiDA profiles, showing the current and default ones.
+
+    Returns
+    -------
+    dict
+        The name of the currently loaded profile, the default profile, and
+        a summary of every configured profile.
+    """
     return profiles.list_profiles()
 
 
@@ -138,18 +235,40 @@ def list_profiles() -> dict:
 # ) -> dict:
 #     """Create a new AiiDA profile and initialise its storage.
 #
-#     name: name for the new profile.
-#     email: default user's email. Required unless the storage backend is read-only.
-#     storage_backend: storage entry point, e.g. core.sqlite_dos (default) or
-#         core.psql_dos.
-#     storage_config: backend-specific configuration, e.g. {"filepath": "/path/to/dir"}
-#         for core.sqlite_dos, or database_username/database_password/database_name/
-#         repository_uri for core.psql_dos. Unset fields fall back to the defaults.
-#     broker: message broker to configure: none (default), core.rabbitmq or core.zeromq.
-#     first_name, last_name, institution: optional details for the default user.
-#     set_as_default: make this the default profile for future server starts.
-#
 #     This does not switch the server's active profile; call switch_profile for that.
+#
+#     Parameters
+#     ----------
+#     name : str
+#         Name for the new profile.
+#     email : str or None
+#         Default user's email. Required unless the storage backend is
+#         read-only.
+#     storage_backend : str
+#         Storage entry point, e.g. core.sqlite_dos (default) or
+#         core.psql_dos.
+#     storage_config : dict or None
+#         Backend-specific configuration, e.g. {"filepath": "/path/to/dir"}
+#         for core.sqlite_dos, or database_username/database_password/
+#         database_name/repository_uri for core.psql_dos. Unset fields fall
+#         back to the defaults.
+#     broker : str
+#         Message broker to configure: none (default), core.rabbitmq or
+#         core.zeromq.
+#     first_name : str or None
+#         First name for the default user.
+#     last_name : str or None
+#         Last name for the default user.
+#     institution : str or None
+#         Institution for the default user.
+#     set_as_default : bool
+#         Make this the default profile for future server starts.
+#
+#     Returns
+#     -------
+#     dict
+#         The new profile's name, storage backend, broker backend, and
+#         whether it is now the default.
 #     """
 #     return profiles.create_profile(
 #         name=name,
@@ -168,7 +287,15 @@ def list_profiles() -> dict:
 # def switch_profile(name: str) -> dict:
 #     """Switch the server's active AiiDA profile and initialise its storage.
 #
-#     name: name of an existing profile, as shown by list_profiles.
+#     Parameters
+#     ----------
+#     name : str
+#         Name of an existing profile, as shown by list_profiles.
+#
+#     Returns
+#     -------
+#     dict
+#         The result of list_profiles, reflecting the newly loaded profile.
 #     """
 #     return profiles.switch_profile(name)
 

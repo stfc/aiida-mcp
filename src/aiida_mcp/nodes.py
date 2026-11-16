@@ -54,7 +54,13 @@ def _node_summary(node: orm.Node) -> dict[str, Any]:
 
 
 def list_computers() -> dict[str, Any]:
-    """List all configured computers."""
+    """List all configured computers.
+
+    Returns
+    -------
+    dict[str, Any]
+        The total number of computers and a summary of each one.
+    """
     connection.ensure_profile()
     computers = orm.Computer.collection.all()
     return {
@@ -66,7 +72,21 @@ def list_computers() -> dict[str, Any]:
 def list_codes(
     computer: str | None = None, limit: int = DEFAULT_LIMIT
 ) -> dict[str, Any]:
-    """List codes, optionally only those on one computer."""
+    """List codes, optionally only those on one computer.
+
+    Parameters
+    ----------
+    computer : str or None
+        Label of the computer to filter by, or None for all computers.
+    limit : int
+        Maximum number of codes to return.
+
+    Returns
+    -------
+    dict[str, Any]
+        The number of matching codes, the number returned, and a summary of
+        each one.
+    """
     connection.ensure_profile()
     limit = clamp_limit(limit, DEFAULT_LIMIT, MAX_LIMIT)
 
@@ -90,7 +110,30 @@ def query_nodes(
     extra_key: str | None = None,
     limit: int = DEFAULT_LIMIT,
 ) -> dict[str, Any]:
-    """Query nodes by type prefix, group label, and/or extras key."""
+    """Query nodes by type prefix, group label, and/or extras key.
+
+    Parameters
+    ----------
+    node_type : str or None
+        Node type prefix to filter by. A trailing ``%`` is optional.
+    group : str or None
+        Label of a group to restrict results to.
+    extra_key : str or None
+        Only include nodes that have this extras key.
+    limit : int
+        Maximum number of nodes to return.
+
+    Returns
+    -------
+    dict[str, Any]
+        The number of matching nodes, the number returned, and a summary of
+        each one.
+
+    Raises
+    ------
+    ToolError
+        If `group` does not match any configured group.
+    """
     connection.ensure_profile()
     limit = clamp_limit(limit, DEFAULT_LIMIT, MAX_LIMIT)
 
@@ -121,7 +164,25 @@ def query_nodes(
 
 
 def get_node_content(pk: int) -> dict[str, Any]:
-    """Return the content of a node, for node types where that is supported."""
+    """Return the content of a node, for node types where that is supported.
+
+    Parameters
+    ----------
+    pk : int
+        Primary key of the node.
+
+    Returns
+    -------
+    dict[str, Any]
+        The node's content. The exact shape depends on the node type; see
+        `_singlefile_content` and `_value_content`.
+
+    Raises
+    ------
+    ToolError
+        If no node exists with the given PK, or if its type has no
+        registered content reader.
+    """
     connection.ensure_profile()
     try:
         node = orm.load_node(pk)

@@ -14,7 +14,18 @@ ENTRY_POINT_GROUP = "aiida.calculations"
 
 
 def calcjob_available(entry_point: str) -> bool:
-    """Return whether a calcjob entry point is installed."""
+    """Return whether a calcjob entry point is installed.
+
+    Parameters
+    ----------
+    entry_point : str
+        The calcjob entry point name, e.g. ``dlpoly``.
+
+    Returns
+    -------
+    bool
+        True if the entry point is installed.
+    """
     return entry_point in get_entry_point_names(ENTRY_POINT_GROUP)
 
 
@@ -23,6 +34,22 @@ def describe_calcjob(entry_point: str) -> dict[str, Any]:
 
     Ports and exit codes inherited unchanged from the base ``CalcJob`` are left out,
     except ``code``, which every calcjob needs.
+
+    Parameters
+    ----------
+    entry_point : str
+        The calcjob entry point name, e.g. ``dlpoly``.
+
+    Returns
+    -------
+    dict[str, Any]
+        The calcjob's entry point, class, description, plugin-specific
+        inputs/outputs/exit codes, and changed metadata option defaults.
+
+    Raises
+    ------
+    ToolError
+        If `entry_point` is not installed.
     """
     if not calcjob_available(entry_point):
         raise ToolError(f"The calculation plugin {entry_point!r} is not installed")
@@ -59,6 +86,24 @@ def submit_calcjob(entry_point: str, inputs: dict[str, Any]) -> orm.ProcessNode:
     """Validate inputs against the calcjob spec, store the data nodes and submit.
 
     Nothing is stored if validation fails.
+
+    Parameters
+    ----------
+    entry_point : str
+        The calcjob entry point name, e.g. ``dlpoly``.
+    inputs : dict[str, Any]
+        The calcjob's inputs, including ``metadata``. Unstored `orm.Data`
+        values are stored before submission.
+
+    Returns
+    -------
+    orm.ProcessNode
+        The submitted process node.
+
+    Raises
+    ------
+    ToolError
+        If `entry_point` is not installed, or `inputs` fails validation.
     """
     if not calcjob_available(entry_point):
         raise ToolError(f"The calculation plugin {entry_point!r} is not installed")
@@ -76,7 +121,23 @@ def submit_calcjob(entry_point: str, inputs: dict[str, Any]) -> orm.ProcessNode:
 
 
 def load_code(identifier: str | int) -> orm.AbstractCode:
-    """Load a code by label or PK, raising a ToolError if that fails."""
+    """Load a code by label or PK, raising a ToolError if that fails.
+
+    Parameters
+    ----------
+    identifier : str or int
+        The code's full label (e.g. ``dl_poly@localhost``) or PK.
+
+    Returns
+    -------
+    orm.AbstractCode
+        The loaded code.
+
+    Raises
+    ------
+    ToolError
+        If no code matches `identifier`, or more than one does.
+    """
     try:
         return orm.load_code(identifier)
     except NotExistent as exc:

@@ -21,7 +21,13 @@ ENTRY_POINT = "dlpoly"
 
 
 def is_available() -> bool:
-    """Return whether the DL_POLY calcjob plugin is installed."""
+    """Return whether the DL_POLY calcjob plugin is installed.
+
+    Returns
+    -------
+    bool
+        True if the ``dlpoly`` entry point is installed.
+    """
     return calcjob_available(ENTRY_POINT)
 
 
@@ -35,7 +41,41 @@ def submit_job(
     label: str | None = None,
     description: str | None = None,
 ) -> dict[str, Any]:
-    """Build the inputs for a DL_POLY calcjob and submit it to the daemon."""
+    """Build the inputs for a DL_POLY calcjob and submit it to the daemon.
+
+    Parameters
+    ----------
+    code : str or int
+        Label (e.g. ``dl_poly@localhost``) or PK of the DL_POLY code.
+    configuration : FileInput
+        The CONFIG file, as a path, text, or PK of a `SinglefileData` or
+        `StructureData` node.
+    field : FileInput
+        The FIELD file, as a path, text, or PK of a `SinglefileData` node.
+    control : ControlInput
+        The CONTROL file as a path, text, or PK of a `SinglefileData` node,
+        or a dict of parameters.
+    num_machines : int
+        Number of machines to run on.
+    num_mpiprocs_per_machine : int
+        MPI processes per machine.
+    label : str or None
+        Optional label to set on the calcjob node.
+    description : str or None
+        Optional description to set on the calcjob node.
+
+    Returns
+    -------
+    dict[str, Any]
+        The process PK, uuid, label, description, code, input node PKs, and
+        daemon state.
+
+    Raises
+    ------
+    ToolError
+        If `num_machines` or `num_mpiprocs_per_machine` is below 1, `code`
+        does not match a known code, or an input fails validation.
+    """
     connection.ensure_profile()
 
     resources = (
@@ -94,11 +134,24 @@ def submit_job(
 
 
 def register(mcp: MCPServer) -> None:
-    """Register the DL_POLY tools on the given MCP server."""
+    """Register the DL_POLY tools on the given MCP server.
+
+    Parameters
+    ----------
+    mcp : MCPServer
+        The server to register the DL_POLY tools on.
+    """
 
     @mcp.tool()
     def describe_dlpoly_calcjob() -> dict[str, Any]:
-        """Describe the DL_POLY calcjob: inputs, outputs, exit codes and defaults."""
+        """Describe the DL_POLY calcjob: inputs, outputs, exit codes and defaults.
+
+        Returns
+        -------
+        dict[str, Any]
+            The calcjob's inputs, outputs, exit codes and changed metadata
+            option defaults.
+        """
         return describe_calcjob(ENTRY_POINT)
 
     @mcp.tool()
@@ -114,19 +167,35 @@ def register(mcp: MCPServer) -> None:
     ) -> dict[str, Any]:
         """Submit a DL_POLY calculation to the daemon; creates nodes and starts a job.
 
-        code: label (e.g. dl_poly@localhost) or PK of the DL_POLY code.
-        configuration: the CONFIG file, as a path, text, or PK of a SinglefileData or
-            StructureData node.
-        field: the FIELD file, as a path, text, or PK of a SinglefileData node.
-        control: the CONTROL file as a path, text, or PK of a SinglefileData node, or a
-            dict of parameters.
-        num_machines: number of machines to run on.
-        num_mpiprocs_per_machine: MPI processes per machine.
-        label: optional label to set on the calcjob node.
-        description: optional description to set on the calcjob node.
-
         Give exactly one of path, text, pk (or parameters for control) for each input.
-        Returns the process PK. Follow the job with get_process and get_process_report.
+        Follow the job with `get_process` and `get_process_report`.
+
+        Parameters
+        ----------
+        code : str or int
+            Label (e.g. ``dl_poly@localhost``) or PK of the DL_POLY code.
+        configuration : FileInput
+            The CONFIG file, as a path, text, or PK of a `SinglefileData` or
+            `StructureData` node.
+        field : FileInput
+            The FIELD file, as a path, text, or PK of a `SinglefileData` node.
+        control : ControlInput
+            The CONTROL file as a path, text, or PK of a `SinglefileData`
+            node, or a dict of parameters.
+        num_machines : int
+            Number of machines to run on.
+        num_mpiprocs_per_machine : int
+            MPI processes per machine.
+        label : str or None
+            Optional label to set on the calcjob node.
+        description : str or None
+            Optional description to set on the calcjob node.
+
+        Returns
+        -------
+        dict[str, Any]
+            The process PK, uuid, label, description, code, input node PKs,
+            and daemon state.
         """
         return submit_job(
             code=code,

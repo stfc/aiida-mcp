@@ -18,7 +18,14 @@ BROKER_CHOICES = ["none", "core.rabbitmq", "core.zeromq"]
 
 
 def list_profiles() -> dict[str, Any]:
-    """List all configured AiiDA profiles."""
+    """List all configured AiiDA profiles.
+
+    Returns
+    -------
+    dict[str, Any]
+        The name of the currently loaded profile, the default profile, and
+        a summary of every configured profile.
+    """
     config = get_config()
     current = get_profile()
 
@@ -56,7 +63,42 @@ def create_profile(
 ) -> dict[str, Any]:
     """Create a new AiiDA profile and initialise its storage.
 
-    This does not switch the server's active profile; call switch_profile for that.
+    This does not switch the server's active profile; call `switch_profile` for that.
+
+    Parameters
+    ----------
+    name : str
+        Name for the new profile.
+    email : str or None
+        Default user's email. Required unless `storage_backend` is read-only.
+    storage_backend : str
+        Storage entry point, e.g. ``core.sqlite_dos`` or ``core.psql_dos``.
+    storage_config : dict[str, Any] or None
+        Backend-specific configuration. Unset fields fall back to the
+        backend's defaults.
+    broker : str
+        Message broker to configure. One of `BROKER_CHOICES`.
+    first_name : str or None
+        First name for the default user.
+    last_name : str or None
+        Last name for the default user.
+    institution : str or None
+        Institution for the default user.
+    set_as_default : bool
+        Whether to make this the default profile for future server starts.
+
+    Returns
+    -------
+    dict[str, Any]
+        The new profile's name, storage backend, broker backend, and
+        whether it is now the default.
+
+    Raises
+    ------
+    ToolError
+        If `broker` or `storage_backend` is not recognised, `email` is
+        missing for a non-read-only backend, a profile named `name` already
+        exists, or profile creation otherwise fails.
     """
     if broker not in BROKER_CHOICES:
         raise ToolError(f"broker must be one of: {', '.join(BROKER_CHOICES)}")
@@ -112,7 +154,23 @@ def create_profile(
 
 
 def switch_profile(name: str) -> dict[str, Any]:
-    """Switch the server's active AiiDA profile and initialise its storage."""
+    """Switch the server's active AiiDA profile and initialise its storage.
+
+    Parameters
+    ----------
+    name : str
+        Name of the profile to switch to.
+
+    Returns
+    -------
+    dict[str, Any]
+        The result of `list_profiles`, reflecting the newly loaded profile.
+
+    Raises
+    ------
+    ToolError
+        If `name` does not match a configured profile.
+    """
     config = get_config()
     if name not in config.profile_names:
         known = ", ".join(config.profile_names)

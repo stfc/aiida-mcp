@@ -9,7 +9,16 @@ from typing import Any
 
 
 def get_status() -> dict[str, Any]:
-    """Report whether an AiiDAlab server is running locally, and its URL."""
+    """Report whether an AiiDAlab server is running locally, and its URL.
+
+    Returns
+    -------
+    dict[str, Any]
+        Whether a server is running and, if so, its URL (with access token),
+        pid, root directory and version. If several candidate servers are
+        running and none is clearly AiiDAlab, ``ambiguous`` is True and
+        ``servers`` lists all of them instead.
+    """
     try:
         from jupyter_server.serverapp import list_running_servers
     except ImportError:

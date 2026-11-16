@@ -36,7 +36,31 @@ def build_node(
     default_filename: str,
     accepted: tuple[type[orm.Node], ...],
 ) -> orm.Node:
-    """Build an unstored node, or load a stored one, from a single input source."""
+    """Build an unstored node, or load a stored one, from a single input source.
+
+    Parameters
+    ----------
+    source : FileInput
+        The input source. Exactly one of its fields must be set.
+    name : str
+        Name of the input, used in error messages.
+    default_filename : str
+        Filename to use for a `SinglefileData` built from `source.text`.
+    accepted : tuple[type[orm.Node], ...]
+        Node types accepted when `source.pk` refers to a stored node.
+
+    Returns
+    -------
+    orm.Node
+        The built or loaded node.
+
+    Raises
+    ------
+    ToolError
+        If `source` does not have exactly one field set, the referenced
+        path does not exist, the referenced PK does not exist, or the
+        loaded node's type is not in `accepted`.
+    """
     given = {
         key: value for key, value in source.model_dump().items() if value is not None
     }
