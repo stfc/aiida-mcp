@@ -8,6 +8,7 @@ from mcp.server.mcpserver import MCPServer
 PLUGIN_MODULES = (
     "aiida_mcp.plugins.dlpoly",
     "aiida_mcp.plugins.chemshell",
+    "aiida_mcp.plugins.mlip",
 )
 
 

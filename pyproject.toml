@@ -21,6 +21,7 @@ requires-python = ">=3.12"
 [project.optional-dependencies]
 dlpoly = ["aiida-dlpoly"]
 chemshell = ["aiida-chemshell"]
+mlip = ["aiida-mlip"]
 aiidalab = ["jupyter-server"]
 test = ["pytest"]
 

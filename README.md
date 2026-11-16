@@ -1,8 +1,8 @@
 # aiida-mcp
 
-An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It lets an MCP client (such as an AI assistant) inspect an AiiDA database and submit DL_POLY and ChemShell calculations.
+An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It lets an MCP client (such as an AI assistant) inspect an AiiDA database and submit DL_POLY, ChemShell and MLIP calculations.
 
-> **Warning:** the server has write tools that are always on: `submit_dlpoly_job` and `submit_chemshell_job` create nodes and start jobs on the daemon, `create_profile` creates new AiiDA profiles and initialises their storage, and `switch_profile` changes the profile every other tool call uses. Point it at a profile you are happy to write to.
+> **Warning:** the server has write tools that are always on: `submit_dlpoly_job`, `submit_chemshell_job` and the `submit_mlip_*_job` tools create nodes and start jobs on the daemon, `create_profile` creates new AiiDA profiles and initialises their storage, and `switch_profile` changes the profile every other tool call uses. Point it at a profile you are happy to write to.
 
 ## Contents
 
@@ -14,6 +14,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - [Tools](#tools)
 - [Submitting a DL_POLY job](#submitting-a-dl_poly-job)
 - [Submitting a ChemShell job](#submitting-a-chemshell-job)
+- [Submitting an MLIP job](#submitting-an-mlip-job)
 - [Managing profiles](#managing-profiles)
 - [Detecting AiiDAlab](#detecting-aiidalab)
 - [Development and tests](#development-and-tests)
@@ -25,6 +26,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - `aiida-core` and `mcp`, which are installed as dependencies.
 - For DL_POLY jobs: a compiled DL_POLY executable and the optional `aiida-dlpoly` plugin.
 - For ChemShell jobs: a compiled ChemShell executable and the optional `aiida-chemshell` plugin.
+- For MLIP jobs: the `janus-core` CLI (`janus`) and the optional `aiida-mlip` plugin.
 - For AiiDAlab detection: the optional `jupyter-server` dependency (already present if installed alongside AiiDAlab itself).
 
 You do not need PostgreSQL or RabbitMQ. The setup below uses SQLite and the ZeroMQ broker that AiiDA includes.
@@ -46,9 +48,10 @@ Optional extras:
 ```bash
 pip install -e ".[dlpoly]"          # DL_POLY tools (installs aiida-dlpoly)
 pip install -e ".[chemshell]"       # ChemShell tools (installs aiida-chemshell)
+pip install -e ".[mlip]"            # MLIP tools (installs aiida-mlip)
 pip install -e ".[aiidalab]"        # AiiDAlab detection (installs jupyter-server)
 pip install -e ".[test]"            # pytest, for running the tests
-pip install -e ".[dlpoly,chemshell,aiidalab,test]"  # all of the above
+pip install -e ".[dlpoly,chemshell,mlip,aiidalab,test]"  # all of the above
 ```
 
 Check the install:
@@ -148,6 +151,26 @@ verdi code list
 verdi code show chemsh
 ```
 
+### Set up an MLIP code
+
+Only needed for the `submit_mlip_*_job` tools. Register the `janus` executable (from `janus-core`) as a code. The same code can be used for all four MLIP job types; `--default-calc-job-plugin` is just the CLI's default suggestion and does not restrict which entry point the code can be submitted with.
+
+```bash
+verdi code create core.code.installed \
+    --label janus \
+    --computer localhost \
+    --filepath-executable "$(which janus)" \
+    --default-calc-job-plugin mlip.sp \
+    --non-interactive
+```
+
+Check it:
+
+```bash
+verdi code list
+verdi code show janus
+```
+
 ## Running the server
 
 The server speaks MCP over **stdio** by default, which is what most clients use. The client normally starts the server itself.
@@ -202,6 +225,10 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 | `get_aiidalab_status` | Reports whether an AiiDAlab server is running locally, and its URL. See [Detecting AiiDAlab](#detecting-aiidalab). |
 | `describe_dlpoly_calcjob` | Describes the DL_POLY calcjob: inputs, outputs, exit codes, default options. |
 | `describe_chemshell_calcjob` | Describes the ChemShell calcjob: inputs, outputs, exit codes, default options. |
+| `describe_mlip_sp_calcjob` | Describes the MLIP single point calcjob: inputs, outputs, exit codes, default options. |
+| `describe_mlip_opt_calcjob` | Describes the MLIP geometry optimisation calcjob. |
+| `describe_mlip_md_calcjob` | Describes the MLIP molecular dynamics calcjob. |
+| `describe_mlip_ph_calcjob` | Describes the MLIP phonon calcjob. |
 
 Notes:
 
@@ -217,6 +244,10 @@ Notes:
 |------|--------------|
 | `submit_dlpoly_job` | Builds and submits a DL_POLY calculation to the daemon. |
 | `submit_chemshell_job` | Builds and submits a ChemShell calculation to the daemon. |
+| `submit_mlip_sp_job` | Builds and submits an MLIP single point calculation to the daemon. |
+| `submit_mlip_opt_job` | Builds and submits an MLIP geometry optimisation to the daemon. |
+| `submit_mlip_md_job` | Builds and submits an MLIP molecular dynamics run to the daemon. |
+| `submit_mlip_ph_job` | Builds and submits an MLIP phonon calculation to the daemon. |
 | `create_profile` *(currently disabled)* | Creates a new AiiDA profile and initialises its storage. See [Managing profiles](#managing-profiles). |
 | `switch_profile` *(currently disabled)* | Switches the server's active AiiDA profile. See [Managing profiles](#managing-profiles). |
 
@@ -307,6 +338,47 @@ Example arguments:
 
 Behaviour is the same as `submit_dlpoly_job`: inputs are validated before anything is stored, the tool returns the process PK and the PKs of the input nodes it created, and a stopped daemon just means the job waits. Follow the job with `get_process` and `get_process_report`, and check `exit_status` against the codes listed by `describe_chemshell_calcjob`.
 
+## Submitting an MLIP job
+
+There are four MLIP tools — `submit_mlip_sp_job` (single point), `submit_mlip_opt_job` (geometry optimisation), `submit_mlip_md_job` (molecular dynamics) and `submit_mlip_ph_job` (phonons) — sharing the same core arguments, plus arguments specific to each job type.
+
+Shared arguments:
+
+| Argument | Meaning |
+|----------|---------|
+| `code` | Label (e.g. `janus@localhost`) or PK of the MLIP code. |
+| `structure` | Path to a structure file on the machine running the server, or the PK of an existing `StructureData` node. |
+| `model` | Path or URL of the MLIP model file, or the PK of an existing `ModelData` node. If omitted, the code's own default model for `architecture` is used. |
+| `architecture` | MLIP architecture, e.g. `mace_mp`. Required unless `model` is the PK of an existing `ModelData` node, which already carries its own architecture. |
+| `device` | Device to run on: `cpu`, `cuda` or `mps`. |
+| `calc_kwargs` | Extra keyword arguments to pass to the selected calculator. |
+| `num_machines` | Machines to run on. Default 1. |
+| `num_mpiprocs_per_machine` | MPI processes per machine. Default 1. |
+| `label` | Optional label to set on the calcjob node. |
+| `description` | Optional description to set on the calcjob node. |
+
+Unlike `configuration`/`field`/`control` in `submit_dlpoly_job`, `structure` and `model` are plain strings or PKs, not `{"path": ...}`/`{"pk": ...}` objects — MLIP's own structure/model loading helpers are reused directly, and they already accept either form as a single value.
+
+Job-specific arguments:
+
+- `submit_mlip_sp_job`: `out` (xyz output filename), `properties` (list of properties to calculate, e.g. `["energy", "forces"]`).
+- `submit_mlip_opt_job`: `opt_cell_fully`, `opt_cell_lengths` (bools), `fmax` (float), `steps` (int), `minimize_kwargs` (dict), `pressure` (float, GPa).
+- `submit_mlip_md_job`: `ensemble` (str, e.g. `NVT`), `md_kwargs` (dict).
+- `submit_mlip_ph_job`: `out`, `supercell`, `qpoint_file` (str), `n_qpoints` (int), `displacement` (float), `no_hdf5`, `dos`, `pdos`, `bands`, `symmetrize` (bools).
+
+Example arguments for a single point calculation:
+
+```json
+{
+  "code": "janus@localhost",
+  "structure": "/data/structure.xyz",
+  "architecture": "mace_mp",
+  "properties": ["energy", "forces"]
+}
+```
+
+Behaviour is the same as `submit_dlpoly_job`: inputs are validated before anything is stored, the tool returns the process PK and the PKs of the input nodes it created, and a stopped daemon just means the job waits. Follow the job with `get_process` and `get_process_report`, and check `exit_status` against the codes listed by the matching `describe_mlip_*_calcjob` tool.
+
 ## Managing profiles
 
 > `create_profile` and `switch_profile` are currently disabled (commented out in `server.py`). `list_profiles` is still available.
@@ -383,12 +455,13 @@ src/aiida_mcp/
     inputs.py      builds input nodes from paths, text, PKs
     dlpoly.py      DL_POLY tools
     chemshell.py   ChemShell tools
+    mlip.py        MLIP tools (single point, geometry optimisation, MD, phonons)
 tests/
 ```
 
 ### Adding a plugin
 
-1. Add a module in `src/aiida_mcp/plugins/` that provides `is_available()` and `register(mcp)`. Use `calcjob.py` for the shared describe and submit logic, and `calcjob.load_code()` for loading a code by label or PK. `dlpoly.py` is a simple worked example; `chemshell.py` shows a plugin with several optional file and `Dict` inputs.
+1. Add a module in `src/aiida_mcp/plugins/` that provides `is_available()` and `register(mcp)`. Use `calcjob.py` for the shared describe and submit logic, and `calcjob.load_code()` for loading a code by label or PK. `dlpoly.py` is a simple worked example; `chemshell.py` shows a plugin with several optional file and `Dict` inputs; `mlip.py` shows a plugin that registers several calcjobs (one per entry point) from a single module.
 2. Add the module's dotted name to `PLUGIN_MODULES` in `plugins/__init__.py`.
 3. Add the plugin as an optional dependency in `pyproject.toml`.
 
