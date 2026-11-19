@@ -1,15 +1,21 @@
 Adding support for a new AiiDA plugin
 =======================================
 
-``aiida-mcp`` exposes calcjob-specific tools through a small plugin system in
-:mod:`aiida_mcp.plugins`. Each AiiDA plugin package (``aiida-dlpoly``, ``aiida-chemshell``,
-``aiida-mlip``, ...) gets its own module there, registered only if that package is actually installed.
-This page walks through adding support for a new one.
+``aiida-mcp`` exposes calcjob-specific tools through modules discovered via the ``aiida_mcp.plugins``
+entry point group. Any installed package can declare one — it does not need to live in this repo. This
+page walks through adding support for a new one, and the shared helpers in :mod:`aiida_mcp.plugins` that
+do most of the work for you regardless of where the module lives.
+
+``aiida-mcp`` itself bundles modules for ``aiida-dlpoly``, ``aiida-chemshell`` and ``aiida-mlip`` under
+:mod:`aiida_mcp.plugins`, registered through this same entry point mechanism via the entry points declared
+in ``aiida-mcp``'s own ``pyproject.toml``. A genuinely third-party AiiDA plugin package would instead
+declare its module directly in its *own* ``pyproject.toml`` — see `Registering the module`_ below for both
+cases.
 
 The plugin contract
 ----------------------
 
-A plugin module is any module listed in ``PLUGIN_MODULES`` in :mod:`aiida_mcp.plugins` that provides two
+A plugin module is any module referenced by an ``aiida_mcp.plugins`` entry point that provides two
 functions:
 
 ``is_available() -> bool``
@@ -20,18 +26,18 @@ functions:
 ``register(mcp: MCPServer) -> None``
     Define and register the plugin's ``@mcp.tool()``-decorated functions on the given server.
 
-:func:`aiida_mcp.plugins.register_all` iterates ``PLUGIN_MODULES``, imports each one, and calls
-``register(mcp)`` only if ``is_available()`` returns ``True``:
+:func:`aiida_mcp.plugins.register_all` enumerates every ``aiida_mcp.plugins`` entry point, loads the
+module it points at, and calls ``register(mcp)`` only if ``is_available()`` returns ``True``:
 
 .. code-block:: python
 
     def register_all(mcp: MCPServer) -> list[str]:
         registered = []
-        for name in PLUGIN_MODULES:
-            module = importlib.import_module(name)
+        for ep in entry_points(group=ENTRY_POINT_GROUP):
+            module = ep.load()
             if module.is_available():
                 module.register(mcp)
-                registered.append(name)
+                registered.append(ep.name)
         return registered
 
 Because ``is_available()`` is checked before anything else, a plugin module must be safe to **import**
@@ -240,18 +246,32 @@ its loading rules.
 Registering the module
 --------------------------
 
-Once the module exists:
+Once the module exists, declare an ``aiida_mcp.plugins`` entry point pointing at it. Where that
+declaration lives depends on whether the module ships in its own package or is bundled in this repo:
 
-1. Add its dotted name to ``PLUGIN_MODULES`` in :mod:`aiida_mcp.plugins`:
+**A genuinely third-party AiiDA plugin package** (the expected case — e.g. a new ``aiida-my-plugin``
+package with its own ``my_package.mcp`` module) declares the entry point in *its own* ``pyproject.toml``:
 
-   .. code-block:: python
+.. code-block:: toml
 
-       PLUGIN_MODULES = (
-           "aiida_mcp.plugins.dlpoly",
-           "aiida_mcp.plugins.chemshell",
-           "aiida_mcp.plugins.mlip",
-           "aiida_mcp.plugins.my_plugin",
-       )
+    [project.entry-points."aiida_mcp.plugins"]
+    my_plugin = "my_package.mcp"
+
+No change to ``aiida-mcp`` itself is needed — the package just needs to be installed (or reinstalled, so
+its entry point metadata is regenerated) alongside ``aiida-mcp``.
+
+**A module bundled in this repo** (as ``dlpoly.py``/``chemshell.py``/``mlip.py`` currently are) instead
+needs the entry point declared in *this project's* ``pyproject.toml``:
+
+1. Add its entry point to ``[project.entry-points."aiida_mcp.plugins"]``:
+
+   .. code-block:: toml
+
+       [project.entry-points."aiida_mcp.plugins"]
+       dlpoly = "aiida_mcp.plugins.dlpoly"
+       chemshell = "aiida_mcp.plugins.chemshell"
+       mlip = "aiida_mcp.plugins.mlip"
+       my_plugin = "aiida_mcp.plugins.my_plugin"
 
 2. Add the AiiDA plugin package as an optional dependency in ``pyproject.toml``:
 
@@ -260,9 +280,11 @@ Once the module exists:
        [project.optional-dependencies]
        my_plugin = ["aiida-my-plugin"]
 
-3. Update ``test_all_tools_are_registered`` in ``tests/test_server.py`` with the new tool names — but
+3. Reinstall ``aiida-mcp`` (e.g. ``pip install -e .``) so the new entry point is picked up — editable
+   installs do not regenerate entry point metadata automatically when ``pyproject.toml`` changes.
+4. Update ``test_all_tools_are_registered`` in ``tests/test_server.py`` with the new tool names — but
    only in an environment where the new plugin package is actually installed; see `Testing`_ below.
-4. Update :doc:`tools` and the README with the new tools and their arguments.
+5. Update :doc:`tools` and the README with the new tools and their arguments.
 
 Docstring convention
 ------------------------

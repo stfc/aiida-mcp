@@ -293,28 +293,31 @@ Behaviour is the same as ``submit_dlpoly_job``. Follow the job with ``get_proces
 Rescanning for plugins
 -------------------------
 
-AiiDA caches the list of installed entry points for the lifetime of the Python process
-(``aiida.plugins.entry_point.eps``/``eps_select`` are both wrapped in ``functools.cache``). That means
-installing a new calcjob plugin package (e.g. ``pip install aiida-dlpoly`` into the server's environment
-while it is already running) is invisible to the server until that cache is cleared — restarting the
-whole server is one way to do that, but ``rescan_plugins``
-(:func:`aiida_mcp.plugins.clear_entry_point_cache` plus :func:`aiida_mcp.plugins.register_all`) does it
-without a restart:
+Plugin tools are discovered from the ``aiida_mcp.plugins`` entry point group
+(:data:`aiida_mcp.plugins.ENTRY_POINT_GROUP`), and both AiiDA and Python cache entry point lookups for the
+lifetime of the process (``aiida.plugins.entry_point.eps``/``eps_select`` are wrapped in
+``functools.cache``; Python's import system caches which distributions exist on ``sys.path``). That means
+installing a new plugin package (e.g. ``pip install aiida-dlpoly`` into the server's environment while it
+is already running, assuming it declares its own ``aiida_mcp.plugins`` entry point) is invisible to the
+server until those caches are cleared — restarting the whole server is one way to do that, but
+``rescan_plugins`` (:func:`aiida_mcp.plugins.clear_entry_point_cache` plus
+:func:`aiida_mcp.plugins.register_all`) does it without a restart:
 
-1. Clears AiiDA's cached entry point lookups.
-2. Re-runs the normal plugin registration pass (:func:`aiida_mcp.plugins.register_all`), which checks
-   ``is_available()`` for every module in ``PLUGIN_MODULES`` again and registers tools for any that are
-   now available.
+1. Clears AiiDA's and Python's cached entry point lookups.
+2. Re-runs the normal plugin registration pass (:func:`aiida_mcp.plugins.register_all`), which enumerates
+   every ``aiida_mcp.plugins`` entry point again, checks ``is_available()`` for each one, and registers
+   tools for any that are now available.
 
 Plugins already registered are left alone — registering the same tool name twice is a safe no-op (the
 underlying MCP server keeps the existing tool and does not duplicate or error). The response reports both
-the full set of currently available plugins and which ones (if any) were newly registered by this call:
+the full set of currently available plugins and which ones (if any) were newly registered by this call,
+identified by their entry point name:
 
 .. code-block:: json
 
     {
-      "available": ["aiida_mcp.plugins.dlpoly", "aiida_mcp.plugins.chemshell"],
-      "newly_registered": ["aiida_mcp.plugins.chemshell"]
+      "available": ["dlpoly", "chemshell"],
+      "newly_registered": ["chemshell"]
     }
 
 An empty ``newly_registered`` list means nothing changed since the server started (or since the last

@@ -307,19 +307,21 @@ _registered_plugins = plugins.register_all(mcp)
 
 @mcp.tool()
 def rescan_plugins() -> dict:
-    """Re-check for installed AiiDA calcjob plugins and register any new ones.
+    """Re-check for installed ``aiida_mcp.plugins`` entry points and register new ones.
 
-    AiiDA caches the list of installed entry points for the lifetime of the server
-    process, so a plugin package (e.g. ``aiida-dlpoly``) installed after the server
-    started is not picked up automatically. This clears that cache and registers tools
-    for any plugin that has since become available; already-registered plugins are left
-    alone.
+    Plugin tools are discovered from the ``aiida_mcp.plugins`` entry point group, which
+    any installed package can declare in its own metadata. Both AiiDA's and Python's
+    entry point lookups are cached for the lifetime of the server process, so a plugin
+    package installed after the server started (with its own ``aiida_mcp.plugins``
+    entry point already declared in its installed metadata) is not picked up
+    automatically. This clears those caches and registers tools for any plugin that has
+    since become available; already-registered plugins are left alone.
 
     Returns
     -------
     dict
-        Every plugin module currently available, and which of those (if any) were newly
-        registered by this call.
+        Every plugin entry point currently available, and which of those (if any) were
+        newly registered by this call.
     """
     global _registered_plugins
     plugins.clear_entry_point_cache()

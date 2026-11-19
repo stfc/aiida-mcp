@@ -10,7 +10,12 @@ from aiida_mcp import plugins, server
 
 
 def test_all_tools_are_registered():
-    """Every tool defined in server.py is exposed to MCP clients."""
+    """Every tool defined in server.py is exposed to MCP clients.
+
+    aiida-mlip is not installed in the test environment (its dependency tree is large
+    and the mlip test suite already covers its glue logic via fake modules, see
+    tests/test_mlip_submit.py), so its tools are not expected here.
+    """
     names = {tool.name for tool in asyncio.run(server.mcp.list_tools())}
     assert names == {
         "ping",
@@ -29,14 +34,6 @@ def test_all_tools_are_registered():
         "submit_dlpoly_job",
         "describe_chemshell_calcjob",
         "submit_chemshell_job",
-        "describe_mlip_sp_calcjob",
-        "describe_mlip_opt_calcjob",
-        "describe_mlip_md_calcjob",
-        "describe_mlip_ph_calcjob",
-        "submit_mlip_sp_job",
-        "submit_mlip_opt_job",
-        "submit_mlip_md_job",
-        "submit_mlip_ph_job",
     }
 
 
@@ -64,8 +61,8 @@ def test_rescan_plugins_detects_a_plugin_that_is_newly_available(monkeypatch):
 
     result = server.rescan_plugins()
 
-    assert "aiida_mcp.plugins.dlpoly" in result["newly_registered"]
-    assert "aiida_mcp.plugins.dlpoly" in result["available"]
+    assert "dlpoly" in result["newly_registered"]
+    assert "dlpoly" in result["available"]
 
 
 def test_rescan_plugins_clears_the_entry_point_cache():

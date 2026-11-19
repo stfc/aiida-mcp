@@ -1,6 +1,7 @@
 """Tests for the generic plugin registration and describe/submit helpers."""
 
 import asyncio
+from importlib.metadata import entry_points
 from unittest import mock
 
 import pytest
@@ -124,7 +125,7 @@ def test_register_all_registers_installed_plugins():
     server = MCPServer("test")
     registered = plugins.register_all(server)
 
-    assert "aiida_mcp.plugins.dlpoly" in registered
+    assert "dlpoly" in registered
     assert "describe_dlpoly_calcjob" in _tool_names(server)
 
 
@@ -134,7 +135,7 @@ def test_register_all_skips_plugin_that_is_not_installed():
     with mock.patch.object(dlpoly, "is_available", return_value=False):
         registered = plugins.register_all(server)
 
-    assert "aiida_mcp.plugins.dlpoly" not in registered
+    assert "dlpoly" not in registered
     assert "describe_dlpoly_calcjob" not in _tool_names(server)
 
 
@@ -143,10 +144,10 @@ def test_register_all_registers_newly_available_plugin_on_rescan():
     server = MCPServer("test")
     with mock.patch.object(dlpoly, "is_available", return_value=False):
         first = plugins.register_all(server)
-    assert "aiida_mcp.plugins.dlpoly" not in first
+    assert "dlpoly" not in first
 
     second = plugins.register_all(server)
-    assert "aiida_mcp.plugins.dlpoly" in second
+    assert "dlpoly" in second
     assert "describe_dlpoly_calcjob" in _tool_names(server)
 
 
@@ -159,6 +160,12 @@ def test_register_all_rescan_does_not_disturb_already_registered_tools():
     plugins.register_all(server)
 
     assert _tool_names(server) == before
+
+
+def test_entry_points_declare_bundled_plugins():
+    """aiida-mcp's own pyproject.toml declares its bundled plugins' entry points."""
+    names = {ep.name for ep in entry_points(group=plugins.ENTRY_POINT_GROUP)}
+    assert names == {"dlpoly", "chemshell", "mlip"}
 
 
 def test_clear_entry_point_cache_clears_aiidas_cached_lookups():

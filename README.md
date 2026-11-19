@@ -183,7 +183,7 @@ pytest
 
 The tests create a temporary SQLite profile in a temporary directory, using AiiDA's own pytest fixtures. They do not touch your `~/.aiida` configuration or your profiles. The tests that submit jobs mock the submit call, so no DL_POLY job runs.
 
-CI (`.github/workflows/ci-testing.yml`) runs `ruff check`/`ruff format --check`, then the full test suite with every plugin extra installed (`.[dlpoly,chemshell,mlip,aiidalab,test]`) on Python 3.12 and 3.13; `test_all_tools_are_registered` in `tests/test_server.py` expects that full set of extras. `.github/workflows/ci-docs.yml` builds the Sphinx docs on every push and pull request, and publishes them to GitHub Pages on pushes to `main` (requires enabling Pages with source "GitHub Actions" in the repository settings once).
+CI (`.github/workflows/ci-testing.yml`) runs `ruff check`/`ruff format --check`, then the test suite with `.[dlpoly,chemshell,aiidalab,test]` installed on Python 3.12 and 3.13; `test_all_tools_are_registered` in `tests/test_server.py` expects that set of extras. `aiida-mlip` is deliberately excluded from CI — it has a large dependency tree, and `tests/test_mlip_submit.py` already exercises `aiida_mcp.plugins.mlip`'s own glue logic against fake `aiida_mlip` modules rather than the real package (see `docs/source/extending.rst`'s Testing section). `.github/workflows/ci-docs.yml` builds the Sphinx docs on every push and pull request, and publishes them to GitHub Pages on pushes to `main` (requires enabling Pages with source "GitHub Actions" in the repository settings once).
 
 Layout:
 
@@ -197,7 +197,7 @@ src/aiida_mcp/
   aiidalab.py      AiiDAlab Jupyter server detection
   limits.py        shared limit handling
   plugins/         plugin-specific calcjobs
-    __init__.py    list of plugin modules and registration
+    __init__.py    entry-point based plugin discovery and registration
     calcjob.py     generic describe and submit helpers
     inputs.py      builds input nodes from paths, text, PKs
     dlpoly.py      DL_POLY tools
@@ -208,11 +208,29 @@ tests/
 
 ### Adding a plugin
 
-1. Add a module in `src/aiida_mcp/plugins/` that provides `is_available()` and `register(mcp)`. Use `calcjob.py` for the shared describe and submit logic, and `calcjob.load_code()` for loading a code by label or PK. `dlpoly.py` is a simple worked example; `chemshell.py` shows a plugin with several optional file and `Dict` inputs; `mlip.py` shows a plugin that registers several calcjobs (one per entry point) from a single module.
-2. Add the module's dotted name to `PLUGIN_MODULES` in `plugins/__init__.py`.
-3. Add the plugin as an optional dependency in `pyproject.toml`.
+Plugin tools are discovered from the `aiida_mcp.plugins` entry point group, so a plugin
+can live in any installed package — it does not need to live in this repo.
 
-A plugin's tools are registered only if its entry point is installed. Without the plugin, the server runs and the tools are absent.
+1. Write a module that provides `is_available()` and `register(mcp)`. Use
+   `aiida_mcp.plugins.calcjob` for the shared describe and submit logic, and
+   `calcjob.load_code()` for loading a code by label or PK. `aiida_mcp/plugins/dlpoly.py`
+   is a simple worked example; `chemshell.py` shows a plugin with several optional file
+   and `Dict` inputs; `mlip.py` shows a plugin that registers several calcjobs (one per
+   entry point) from a single module.
+2. Declare an entry point for that module in the plugin package's own `pyproject.toml`:
+
+   ```toml
+   [project.entry-points."aiida_mcp.plugins"]
+   my_plugin = "my_package.mcp"
+   ```
+
+   (`aiida-mcp`'s own `pyproject.toml` does this for its bundled dlpoly/chemshell/mlip
+   modules — see there for a concrete example.)
+3. Install (or reinstall) the package so its entry point metadata is picked up.
+
+A plugin's tools are registered only if its entry point module's `is_available()`
+returns `True`. Without the underlying AiiDA plugin package, the server runs and the
+tools are absent.
 
 ## Troubleshooting
 
@@ -223,7 +241,7 @@ No default profile was found. Run `verdi profile list`. If the client starts the
 The daemon is probably not running. Run `verdi daemon status`, then `verdi daemon start`.
 
 **A newly installed plugin's tools aren't showing up.**
-The server only checks for installed plugins on startup. Call the `rescan_plugins` tool, or restart the server, to pick up a plugin package installed afterwards.
+The server only checks for installed plugins on startup. Call the `rescan_plugins` tool, or restart the server, to pick up a plugin package installed afterwards. Make sure the package declares an `aiida_mcp.plugins` entry point in its own installed metadata — see [Adding a plugin](#adding-a-plugin).
 
 **A job finishes with a non-zero exit status or `excepted`.**
 Call `get_process_report` with the PK. For DL_POLY, compare the exit status with `describe_dlpoly_calcjob`. Check that the code's executable path exists (`verdi code show <code>`).
