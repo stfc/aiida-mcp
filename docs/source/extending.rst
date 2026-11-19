@@ -6,11 +6,11 @@ entry point group. Any installed package can declare one — it does not need to
 page walks through adding support for a new one, and the shared helpers in :mod:`aiida_mcp.plugins` that
 do most of the work for you regardless of where the module lives.
 
-``aiida-mcp`` itself bundles modules for ``aiida-dlpoly``, ``aiida-chemshell`` and ``aiida-mlip`` under
+``aiida-mcp`` itself bundles modules for ``aiida-chemshell`` and ``aiida-mlip`` under
 :mod:`aiida_mcp.plugins`, registered through this same entry point mechanism via the entry points declared
-in ``aiida-mcp``'s own ``pyproject.toml``. A genuinely third-party AiiDA plugin package would instead
-declare its module directly in its *own* ``pyproject.toml`` — see `Registering the module`_ below for both
-cases.
+in ``aiida-mcp``'s own ``pyproject.toml``. ``aiida-dlpoly`` instead declares its module (``aiida_dlpoly.mcp``)
+directly in its *own* ``pyproject.toml`` — the real, working example of the genuinely third-party case. See
+`Registering the module`_ below for both cases.
 
 The plugin contract
 ----------------------
@@ -79,8 +79,8 @@ so you don't duplicate logic the plugin's own maintainers keep in sync with thei
 Worked example: a single calcjob
 -----------------------------------
 
-:mod:`aiida_mcp.plugins.dlpoly` is the simplest real example: one calcjob, three file-like inputs, two
-resource options. The shape to follow is:
+``aiida_dlpoly.mcp`` (in the `aiida-dlpoly <https://github.com/stfc/aiida-dlpoly>`_ repository) is the
+simplest real example: one calcjob, three file-like inputs, two resource options. The shape to follow is:
 
 .. code-block:: python
 
@@ -258,17 +258,17 @@ package with its own ``my_package.mcp`` module) declares the entry point in *its
     my_plugin = "my_package.mcp"
 
 No change to ``aiida-mcp`` itself is needed — the package just needs to be installed (or reinstalled, so
-its entry point metadata is regenerated) alongside ``aiida-mcp``.
+its entry point metadata is regenerated) alongside ``aiida-mcp``. ``aiida-dlpoly`` follows exactly this
+pattern for real: see its ``pyproject.toml`` and ``aiida_dlpoly/mcp.py``.
 
-**A module bundled in this repo** (as ``dlpoly.py``/``chemshell.py``/``mlip.py`` currently are) instead
-needs the entry point declared in *this project's* ``pyproject.toml``:
+**A module bundled in this repo** (as ``chemshell.py``/``mlip.py`` currently are) instead needs the entry
+point declared in *this project's* ``pyproject.toml``:
 
 1. Add its entry point to ``[project.entry-points."aiida_mcp.plugins"]``:
 
    .. code-block:: toml
 
        [project.entry-points."aiida_mcp.plugins"]
-       dlpoly = "aiida_mcp.plugins.dlpoly"
        chemshell = "aiida_mcp.plugins.chemshell"
        mlip = "aiida_mcp.plugins.mlip"
        my_plugin = "aiida_mcp.plugins.my_plugin"
@@ -315,11 +315,11 @@ so that no real job is submitted, then assert on the inputs that *would* have be
             node.store_all = lambda: None
             yield patched
 
-If the real AiiDA plugin package is installed in the test environment (as ``aiida-dlpoly`` and
-``aiida-chemshell`` are in this project's own development environment), mocking only the final
-``aiida.engine.submit`` call still exercises the real calcjob's input validation — so tests can assert on
-genuine ``ToolError`` messages raised by the plugin's own ``validate_inputs``, not just this project's
-glue code.
+If the real AiiDA plugin package is installed in the test environment (as ``aiida-chemshell`` is in this
+project's own development environment — ``aiida-dlpoly``'s own test suite does the same for
+``aiida_dlpoly.mcp``, see that repository), mocking only the final ``aiida.engine.submit`` call still
+exercises the real calcjob's input validation — so tests can assert on genuine ``ToolError`` messages
+raised by the plugin's own ``validate_inputs``, not just this project's glue code.
 
 If the real package is **not** installed (as was the case developing :mod:`aiida_mcp.plugins.mlip`), the
 real entry point is not registered with AiiDA at all, so ``calcjob.CalculationFactory(entry_point)`` —
@@ -348,4 +348,4 @@ package lazily (as described in `When the plugin has its own loaders`_), inject 
 Tests built this way verify the plugin module's own glue logic (input assembly, error handling, resource
 validation) correctly, but **not** the real third-party package's actual behaviour — treat them as a
 stopgap, and prefer installing the real package in the test environment once that's possible, matching
-how ``aiida-dlpoly`` and ``aiida-chemshell`` are tested in this project today.
+how ``aiida-chemshell`` is tested in this project today.

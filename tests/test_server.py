@@ -12,9 +12,12 @@ from aiida_mcp import plugins, server
 def test_all_tools_are_registered():
     """Every tool defined in server.py is exposed to MCP clients.
 
-    aiida-mlip is not installed in the test environment (its dependency tree is large
-    and the mlip test suite already covers its glue logic via fake modules, see
-    tests/test_mlip_submit.py), so its tools are not expected here.
+    DL_POLY tools are no longer bundled with aiida-mcp — they come from
+    aiida-dlpoly's own optional ``mcp`` extra (see tests/test_mcp.py in that
+    repository), which this environment does not install. aiida-mlip is also not
+    installed here: its dependency tree is large, and the mlip test suite already
+    covers its glue logic via fake modules (see tests/test_mlip_submit.py). Neither
+    plugin's tools are expected here as a result.
     """
     names = {tool.name for tool in asyncio.run(server.mcp.list_tools())}
     assert names == {
@@ -30,8 +33,6 @@ def test_all_tools_are_registered():
         "get_aiidalab_status",
         "list_profiles",
         "rescan_plugins",
-        "describe_dlpoly_calcjob",
-        "submit_dlpoly_job",
         "describe_chemshell_calcjob",
         "submit_chemshell_job",
     }
@@ -56,13 +57,13 @@ def test_rescan_plugins_detects_a_plugin_that_is_newly_available(monkeypatch):
     monkeypatch.setattr(
         server,
         "_registered_plugins",
-        [name for name in server._registered_plugins if "dlpoly" not in name],
+        [name for name in server._registered_plugins if "chemshell" not in name],
     )
 
     result = server.rescan_plugins()
 
-    assert "dlpoly" in result["newly_registered"]
-    assert "dlpoly" in result["available"]
+    assert "chemshell" in result["newly_registered"]
+    assert "chemshell" in result["available"]
 
 
 def test_rescan_plugins_clears_the_entry_point_cache():

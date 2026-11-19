@@ -22,7 +22,6 @@ requires-python = ">=3.12"
 dependencies = ["mcp", "aiida-core>=2.7.4,<3"]
 
 [project.optional-dependencies]
-dlpoly = ["aiida-dlpoly"]
 chemshell = ["aiida-chemshell"]
 mlip = ["aiida-mlip"]
 aiidalab = ["jupyter-server"]
@@ -33,7 +32,6 @@ test = ["pytest", "pytest-cov"]
 aiida-mcp = "aiida_mcp.server:main"
 
 [project.entry-points."aiida_mcp.plugins"]
-dlpoly = "aiida_mcp.plugins.dlpoly"
 chemshell = "aiida_mcp.plugins.chemshell"
 mlip = "aiida_mcp.plugins.mlip"
 

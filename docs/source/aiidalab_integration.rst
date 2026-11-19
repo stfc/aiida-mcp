@@ -81,7 +81,7 @@ container startup — no image rebuild needed when the script or the package cha
 
     # start-aiida-mcp.sh
     #!/bin/bash
-    pip install --quiet "aiida-mcp[dlpoly,chemshell,mlip]"
+    pip install --quiet "aiida-mcp[chemshell,mlip]" "aiida-dlpoly[mcp]"
     aiida-mcp --transport streamable-http > /home/jovyan/aiida-mcp.log 2>&1 &
 
 .. code-block:: bash
@@ -114,7 +114,7 @@ container start:
     #     && rm -rf /var/lib/apt/lists/*
 
     USER ${NB_USER}
-    RUN pip install --no-cache-dir "aiida-mcp[dlpoly,chemshell,mlip]"
+    RUN pip install --no-cache-dir "aiida-mcp[chemshell,mlip]" "aiida-dlpoly[mcp]"
 
     COPY --chown=${NB_USER}:${NB_GID} start-aiida-mcp.sh /usr/local/bin/start-notebook.d/99-start-aiida-mcp.sh
 

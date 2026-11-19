@@ -38,8 +38,6 @@ Read-only tools
      - Lists all configured AiiDA profiles, showing the current and default ones.
    * - ``get_aiidalab_status``
      - Reports whether an AiiDAlab server is running locally, and its URL. See `Detecting AiiDAlab`_.
-   * - ``describe_dlpoly_calcjob``
-     - Describes the DL_POLY calcjob: inputs, outputs, exit codes, default options.
    * - ``describe_chemshell_calcjob``
      - Describes the ChemShell calcjob: inputs, outputs, exit codes, default options.
    * - ``describe_mlip_sp_calcjob``
@@ -75,8 +73,6 @@ Write tools
 
    * - Tool
      - What it does
-   * - ``submit_dlpoly_job``
-     - Builds and submits a DL_POLY calculation to the daemon.
    * - ``submit_chemshell_job``
      - Builds and submits a ChemShell calculation to the daemon.
    * - ``submit_mlip_sp_job``
@@ -95,61 +91,20 @@ Write tools
      - Re-checks for installed AiiDA plugins and registers any newly available ones. See
        `Rescanning for plugins`_.
 
-Submitting a DL_POLY job
-~~~~~~~~~~~~~~~~~~~~~~~~~
+DL_POLY tools now ship with aiida-dlpoly
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``submit_dlpoly_job`` (:func:`aiida_mcp.plugins.dlpoly.submit_job`) takes:
+``describe_dlpoly_calcjob`` and ``submit_dlpoly_job`` are no longer bundled with aiida-mcp. They are
+provided by `aiida-dlpoly <https://github.com/stfc/aiida-dlpoly>`_'s own ``aiida_dlpoly.mcp`` module,
+installed via its optional ``mcp`` extra:
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 75
+.. code-block:: bash
 
-   * - Argument
-     - Meaning
-   * - ``code``
-     - Label (e.g. ``dl_poly@localhost``) or PK of the DL_POLY code.
-   * - ``configuration``
-     - The CONFIG file, or a ``StructureData`` node.
-   * - ``field``
-     - The FIELD file.
-   * - ``control``
-     - The CONTROL file, or a dict of parameters.
-   * - ``num_machines``
-     - Machines to run on. Default 1.
-   * - ``num_mpiprocs_per_machine``
-     - MPI processes per machine. Default 1.
-   * - ``label``
-     - Optional label to set on the calcjob node.
-   * - ``description``
-     - Optional description to set on the calcjob node.
+    pip install "aiida-dlpoly[mcp]"
 
-Each of ``configuration``, ``field`` and ``control`` takes **exactly one** of ``path`` (a file on the
-machine running the server), ``text`` (the file contents as a string), or ``pk`` (an existing node in
-the database). ``configuration`` accepts ``SinglefileData`` or ``StructureData``, ``field`` accepts
-``SinglefileData``, and ``control`` accepts ``SinglefileData`` or ``Dict``. ``control`` also accepts
-``parameters``, a dictionary stored as a ``Dict`` node. This dispatch is implemented by
-:func:`aiida_mcp.plugins.inputs.build_node`.
-
-Example arguments:
-
-.. code-block:: json
-
-    {
-      "code": "dl_poly@localhost",
-      "configuration": {"path": "/data/TEST001/CONFIG"},
-      "field": {"path": "/data/TEST001/FIELD"},
-      "control": {"path": "/data/TEST001/CONTROL"}
-    }
-
-The inputs are checked against the calcjob definition before anything is stored — a bad input returns an
-error and creates no nodes. On success the tool returns the process PK and the PKs of the input nodes;
-follow the job with ``get_process`` and ``get_process_report``. If the daemon is stopped, the job is
-created and waits until the daemon starts, and the result says so. The server does not wait for the job
-to finish.
-
-A typical session: call ``get_status``, call ``list_codes`` to find the code, call ``submit_dlpoly_job``,
-then poll ``get_process`` until ``state`` is ``finished`` and check ``exit_status``. An ``exit_status`` of
-0 means success; other values are listed by ``describe_dlpoly_calcjob``.
+Once installed alongside aiida-mcp, these tools are discovered through the same ``aiida_mcp.plugins``
+entry point mechanism as any other plugin — see :doc:`extending` — with no further configuration needed.
+See aiida-dlpoly's own documentation for their arguments and behaviour.
 
 Submitting a ChemShell job
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

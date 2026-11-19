@@ -7,9 +7,10 @@ module providing ``is_available() -> bool`` and ``register(mcp) -> None``, e.g.:
     [project.entry-points."aiida_mcp.plugins"]
     dlpoly = "aiida_dlpoly.mcp"
 
-aiida-mcp bundles its own plugin modules for dlpoly, chemshell and mlip (see
-``aiida_mcp/plugins/{dlpoly,chemshell,mlip}.py``), registered through this same
-mechanism via the entry points declared in this project's own ``pyproject.toml``.
+That example is real: DL_POLY's tools live in ``aiida_dlpoly.mcp``, in the aiida-dlpoly
+package itself, not here. aiida-mcp still bundles plugin modules for chemshell and mlip
+(see ``aiida_mcp/plugins/{chemshell,mlip}.py``), registered through this same mechanism
+via the entry points declared in this project's own ``pyproject.toml``.
 """
 
 import importlib
