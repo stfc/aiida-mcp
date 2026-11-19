@@ -152,7 +152,7 @@ Notes:
 Each supported package has its own submit tool(s), argument reference and worked example in the full
 documentation:
 
-- [**DL_POLY**](https://stfc.github.io/aiida-dlpoly/) — now documented in aiida-dlpoly's own README, see [its MCP integration section](https://github.com/stfc/aiida-dlpoly#mcp-integration).
+- [**DL_POLY**](https://stfc.github.io/aiida-dlpoly/mcp.html) — now documented in aiida-dlpoly's own docs.
 - [**ChemShell**](https://stfc.github.io/aiida-mcp/tools.html#submitting-a-chemshell-job).
 - [**MLIP**](https://stfc.github.io/aiida-mcp/tools.html#submitting-an-mlip-job).
 

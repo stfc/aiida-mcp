@@ -104,7 +104,8 @@ installed via its optional ``mcp`` extra:
 
 Once installed alongside aiida-mcp, these tools are discovered through the same ``aiida_mcp.plugins``
 entry point mechanism as any other plugin — see :doc:`extending` — with no further configuration needed.
-See aiida-dlpoly's own documentation for their arguments and behaviour.
+See aiida-dlpoly's `MCP integration docs <https://stfc.github.io/aiida-dlpoly/mcp.html>`_ for their
+arguments and behaviour.
 
 Submitting a ChemShell job
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
