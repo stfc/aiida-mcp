@@ -8,9 +8,10 @@ module providing ``is_available() -> bool`` and ``register(mcp) -> None``, e.g.:
     dlpoly = "aiida_dlpoly.mcp"
 
 That example is real: DL_POLY's tools live in ``aiida_dlpoly.mcp``, in the aiida-dlpoly
-package itself, not here. aiida-mcp still bundles plugin modules for chemshell and mlip
-(see ``aiida_mcp/plugins/{chemshell,mlip}.py``), registered through this same mechanism
-via the entry points declared in this project's own ``pyproject.toml``.
+package itself, not here — ChemShell's tools likewise live in ``aiida_chemshell.mcp``,
+in the aiida-chemshell package. aiida-mcp still bundles a plugin module for mlip (see
+``aiida_mcp/plugins/mlip.py``), registered through this same mechanism via the entry
+point declared in this project's own ``pyproject.toml``.
 """
 
 import importlib

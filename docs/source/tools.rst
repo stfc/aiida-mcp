@@ -38,8 +38,6 @@ Read-only tools
      - Lists all configured AiiDA profiles, showing the current and default ones.
    * - ``get_aiidalab_status``
      - Reports whether an AiiDAlab server is running locally, and its URL. See `Detecting AiiDAlab`_.
-   * - ``describe_chemshell_calcjob``
-     - Describes the ChemShell calcjob: inputs, outputs, exit codes, default options.
    * - ``describe_mlip_sp_calcjob``
      - Describes the MLIP single point calcjob.
    * - ``describe_mlip_opt_calcjob``
@@ -73,8 +71,6 @@ Write tools
 
    * - Tool
      - What it does
-   * - ``submit_chemshell_job``
-     - Builds and submits a ChemShell calculation to the daemon.
    * - ``submit_mlip_sp_job``
      - Builds and submits an MLIP single point calculation to the daemon.
    * - ``submit_mlip_opt_job``
@@ -107,72 +103,21 @@ entry point mechanism as any other plugin — see :doc:`extending` — with no f
 See aiida-dlpoly's `MCP integration docs <https://stfc.github.io/aiida-dlpoly/mcp.html>`_ for their
 arguments and behaviour.
 
-Submitting a ChemShell job
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ChemShell tools now ship with aiida-chemshell
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``submit_chemshell_job`` (:func:`aiida_mcp.plugins.chemshell.submit_job`) takes:
+``describe_chemshell_calcjob`` and ``submit_chemshell_job`` are no longer bundled with aiida-mcp. They are
+provided by `aiida-chemshell <https://github.com/stfc/aiida-chemshell>`_'s own ``aiida_chemshell.mcp``
+module, installed via its optional ``mcp`` extra:
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 75
+.. code-block:: bash
 
-   * - Argument
-     - Meaning
-   * - ``code``
-     - Label (e.g. ``chemsh@localhost``) or PK of the ChemShell code.
-   * - ``structure``
-     - The input structure.
-   * - ``structure_index``
-     - Index to extract one structure from a multi-structure ``TrajectoryData`` input.
-   * - ``structure2``
-     - A second input structure, e.g. the final structure for a NEB optimisation.
-   * - ``calculation_parameters``
-     - Dict of parameters for the ChemShell Task object.
-   * - ``optimisation_parameters``
-     - Dict of parameters for a geometry optimisation task. Providing this configures an optimisation
-       task.
-   * - ``qm_parameters``
-     - Dict of parameters for the QM Theory object.
-   * - ``mm_parameters``
-     - Dict of parameters for the MM interface.
-   * - ``qmmm_parameters``
-     - Dict of parameters for the QM/MM interface.
-   * - ``force_field_file``
-     - File with force field parameters for the MM interface.
-   * - ``output_structure_as_file``
-     - If true, return the optimised structure as a ``.cjson`` file instead of a ``StructureData`` node.
-       Default false.
-   * - ``num_machines``
-     - Machines to run on. Default 1.
-   * - ``num_mpiprocs_per_machine``
-     - MPI processes per machine. Default 4.
-   * - ``label``
-     - Optional label to set on the calcjob node.
-   * - ``description``
-     - Optional description to set on the calcjob node.
+    pip install "aiida-chemshell[mcp]"
 
-``structure``, ``structure2`` and ``force_field_file`` each take exactly one of ``path``, ``text`` or
-``pk``, as above; ``structure``/``structure2`` accept ``SinglefileData`` (a ``.xyz``, ``.pun`` or
-``.cjson`` file), ``StructureData``, or ``TrajectoryData``, and ``force_field_file`` accepts
-``SinglefileData``. ``calculation_parameters``, ``optimisation_parameters``, ``qm_parameters``,
-``mm_parameters`` and ``qmmm_parameters`` each also take ``parameters``, a dictionary stored as a
-``Dict`` node (or ``pk`` of an existing ``Dict`` node).
-
-Example arguments:
-
-.. code-block:: json
-
-    {
-      "code": "chemsh@localhost",
-      "structure": {"path": "/data/system.xyz"},
-      "qm_parameters": {"parameters": {"theory": "nwchem", "basis": "6-31G"}},
-      "optimisation_parameters": {"parameters": {}}
-    }
-
-Behaviour is the same as ``submit_dlpoly_job``: inputs are validated before anything is stored, the tool
-returns the process PK and the PKs of the input nodes it created, and a stopped daemon just means the
-job waits. Follow the job with ``get_process`` and ``get_process_report``, and check ``exit_status``
-against the codes listed by ``describe_chemshell_calcjob``.
+Once installed alongside aiida-mcp, these tools are discovered through the same ``aiida_mcp.plugins``
+entry point mechanism as any other plugin — see :doc:`extending` — with no further configuration needed.
+See aiida-chemshell's `MCP integration docs <https://stfc.github.io/aiida-chemshell/mcp.html>`_ for their
+arguments and behaviour.
 
 Submitting an MLIP job
 ~~~~~~~~~~~~~~~~~~~~~~~

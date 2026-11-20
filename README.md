@@ -22,7 +22,7 @@ An [MCP](https://modelcontextprotocol.io) server for ALC's AiiDA projects. It le
 - Python 3.12 or newer. The project is developed and tested on Python 3.14 only.
 - `aiida-core` and `mcp`, which are installed as dependencies.
 - For DL_POLY jobs: a compiled DL_POLY executable and `aiida-dlpoly` installed with its `mcp` extra (`pip install "aiida-dlpoly[mcp]"`) — its MCP tools are no longer bundled with aiida-mcp, see [Adding a plugin](#adding-a-plugin).
-- For ChemShell jobs: a compiled ChemShell executable and the optional `aiida-chemshell` plugin.
+- For ChemShell jobs: a compiled ChemShell executable and `aiida-chemshell` installed with its `mcp` extra (`pip install "aiida-chemshell[mcp]"`) — its MCP tools are no longer bundled with aiida-mcp either.
 - For MLIP jobs: the `janus-core` CLI (`janus`) and the optional `aiida-mlip` plugin.
 - For AiiDAlab detection: the optional `jupyter-server` dependency (already present if installed alongside AiiDAlab itself).
 
@@ -43,18 +43,18 @@ pip install -e .
 Optional extras:
 
 ```bash
-pip install -e ".[chemshell]"       # ChemShell tools (installs aiida-chemshell)
 pip install -e ".[mlip]"            # MLIP tools (installs aiida-mlip)
 pip install -e ".[aiidalab]"        # AiiDAlab detection (installs jupyter-server)
 pip install -e ".[test]"            # pytest, for running the tests
-pip install -e ".[chemshell,mlip,aiidalab,test]"  # all of the above
+pip install -e ".[mlip,aiidalab,test]"  # all of the above
 ```
 
-DL_POLY tools are not an aiida-mcp extra — install `aiida-dlpoly` with its own `mcp` extra instead, and
-aiida-mcp will discover it automatically:
+DL_POLY and ChemShell tools are not aiida-mcp extras — install `aiida-dlpoly`/`aiida-chemshell` with their
+own `mcp` extra instead, and aiida-mcp will discover them automatically:
 
 ```bash
 pip install "aiida-dlpoly[mcp]"
+pip install "aiida-chemshell[mcp]"
 ```
 
 Check the install:
@@ -128,7 +128,6 @@ The first tool call takes a few seconds, because AiiDA loads its profile and sto
 | `get_node_content` | Returns the content of a node: file content for `SinglefileData`, the value for `Int`/`Float`, the dictionary for `Dict`, the named arrays for `ArrayData`. |
 | `list_profiles` | Lists all configured AiiDA profiles, showing the current and default ones. |
 | `get_aiidalab_status` | Reports whether an AiiDAlab server is running locally, and its URL. See [Detecting AiiDAlab](#detecting-aiidalab). |
-| `describe_chemshell_calcjob` | Describes the ChemShell calcjob: inputs, outputs, exit codes, default options. |
 | `describe_mlip_*_calcjob` | Describes the MLIP calcjob: inputs, outputs, exit codes, default options. |
 
 Notes:
@@ -143,7 +142,6 @@ Notes:
 
 | Tool | What it does |
 |------|--------------|
-| `submit_chemshell_job` | Builds and submits a ChemShell calculation to the daemon. |
 | `submit_mlip_*_job` | Builds and submits an MLIP calculation to the daemon. |
 | `rescan_plugins` | Re-checks for installed AiiDA plugins and registers tools for any that have become available since the server started. |
 
@@ -153,7 +151,7 @@ Each supported package has its own submit tool(s), argument reference and worked
 documentation:
 
 - [**DL_POLY**](https://stfc.github.io/aiida-dlpoly/mcp.html) — now documented in aiida-dlpoly's own docs.
-- [**ChemShell**](https://stfc.github.io/aiida-mcp/tools.html#submitting-a-chemshell-job).
+- [**ChemShell**](https://stfc.github.io/aiida-chemshell/mcp.html) — now documented in aiida-chemshell's own docs.
 - [**MLIP**](https://stfc.github.io/aiida-mcp/tools.html#submitting-an-mlip-job).
 
 All of them share the same behaviour: inputs are validated against the calcjob definition before
@@ -181,13 +179,13 @@ This only detects a server running in the same Python environment as the MCP ser
 ## Development and tests
 
 ```bash
-pip install -e ".[chemshell,test]"
+pip install -e ".[test]"
 pytest
 ```
 
-The tests create a temporary SQLite profile in a temporary directory, using AiiDA's own pytest fixtures. They do not touch your `~/.aiida` configuration or your profiles. The tests that submit jobs mock the submit call, so no real job runs. DL_POLY's MCP tools are tested in aiida-dlpoly's own test suite, not here.
+The tests create a temporary SQLite profile in a temporary directory, using AiiDA's own pytest fixtures. They do not touch your `~/.aiida` configuration or your profiles. The tests that submit jobs mock the submit call, so no real job runs. DL_POLY's and ChemShell's MCP tools are tested in their own repositories' test suites, not here; `tests/test_plugins.py`'s generic `register_all`/rescan tests use a fake plugin module instead of depending on any real AiiDA plugin package being installed.
 
-CI (`.github/workflows/ci-testing.yml`) runs `ruff check`/`ruff format --check`, then the test suite with `.[chemshell,aiidalab,test]` installed on Python 3.12 and 3.13; `test_all_tools_are_registered` in `tests/test_server.py` expects that set of extras. `aiida-mlip` is deliberately excluded from CI — it has a large dependency tree, and `tests/test_mlip_submit.py` already exercises `aiida_mcp.plugins.mlip`'s own glue logic against fake `aiida_mlip` modules rather than the real package (see `docs/source/extending.rst`'s Testing section). `.github/workflows/ci-docs.yml` builds the Sphinx docs on every push and pull request, and publishes them to GitHub Pages on pushes to `main` (requires enabling Pages with source "GitHub Actions" in the repository settings once).
+CI (`.github/workflows/ci-testing.yml`) runs `ruff check`/`ruff format --check`, then the test suite with `.[aiidalab,test]` installed on Python 3.12 and 3.13; `test_all_tools_are_registered` in `tests/test_server.py` expects that set of extras (i.e. no calcjob plugin tools at all, in this environment). `aiida-mlip` is deliberately excluded from CI — it has a large dependency tree, and `tests/test_mlip_submit.py` already exercises `aiida_mcp.plugins.mlip`'s own glue logic against fake `aiida_mlip` modules rather than the real package (see `docs/source/extending.rst`'s Testing section). `.github/workflows/ci-docs.yml` builds the Sphinx docs on every push and pull request, and publishes them to GitHub Pages on pushes to `main` (requires enabling Pages with source "GitHub Actions" in the repository settings once).
 
 Layout:
 
@@ -204,13 +202,12 @@ src/aiida_mcp/
     __init__.py    entry-point based plugin discovery and registration
     calcjob.py     generic describe and submit helpers
     inputs.py      builds input nodes from paths, text, PKs
-    chemshell.py   ChemShell tools
     mlip.py        MLIP tools (single point, geometry optimisation, MD, phonons)
 tests/
 ```
 
-DL_POLY's MCP tools live in `aiida_dlpoly.mcp` in the aiida-dlpoly repository, not here — see
-[Adding a plugin](#adding-a-plugin).
+DL_POLY's and ChemShell's MCP tools live in `aiida_dlpoly.mcp` and `aiida_chemshell.mcp` in their own
+repositories, not here — see [Adding a plugin](#adding-a-plugin).
 
 ### Adding a plugin
 
@@ -221,9 +218,11 @@ can live in any installed package — it does not need to live in this repo.
    `aiida_mcp.plugins.calcjob` for the shared describe and submit logic, and
    `calcjob.load_code()` for loading a code by label or PK.
    [aiida-dlpoly's `aiida_dlpoly/mcp.py`](https://github.com/stfc/aiida-dlpoly/blob/main/src/aiida_dlpoly/mcp.py)
-   is a simple worked example, living entirely in its own package; `aiida_mcp/plugins/chemshell.py`
-   in this repo shows a plugin with several optional file and `Dict` inputs; `mlip.py` shows a
-   plugin that registers several calcjobs (one per entry point) from a single module.
+   is a simple worked example, living entirely in its own package;
+   [aiida-chemshell's `aiida_chemshell/mcp.py`](https://github.com/stfc/aiida-chemshell/blob/main/src/aiida_chemshell/mcp.py)
+   shows a plugin with several optional file and `Dict` inputs; `aiida_mcp/plugins/mlip.py`
+   in this repo shows a plugin that registers several calcjobs (one per entry point) from a
+   single module.
 2. Declare an entry point for that module in the plugin package's own `pyproject.toml`:
 
    ```toml
@@ -231,9 +230,9 @@ can live in any installed package — it does not need to live in this repo.
    my_plugin = "my_package.mcp"
    ```
 
-   (`aiida-mcp`'s own `pyproject.toml` does this for its bundled chemshell/mlip modules;
-   aiida-dlpoly's own `pyproject.toml` does the same for `aiida_dlpoly.mcp` — see either
-   for a concrete example.)
+   (`aiida-mcp`'s own `pyproject.toml` does this for its bundled `mlip` module;
+   aiida-dlpoly's and aiida-chemshell's own `pyproject.toml` files do the same for
+   `aiida_dlpoly.mcp`/`aiida_chemshell.mcp` — see any of them for a concrete example.)
 3. Install (or reinstall) the package so its entry point metadata is picked up.
 
 A plugin's tools are registered only if its entry point module's `is_available()`

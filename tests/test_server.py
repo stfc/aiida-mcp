@@ -4,6 +4,7 @@ import asyncio
 from unittest import mock
 
 import pytest
+from conftest import fake_entry_point, fake_plugin_module
 from mcp.server.mcpserver.exceptions import ToolError
 
 from aiida_mcp import plugins, server
@@ -12,12 +13,13 @@ from aiida_mcp import plugins, server
 def test_all_tools_are_registered():
     """Every tool defined in server.py is exposed to MCP clients.
 
-    DL_POLY tools are no longer bundled with aiida-mcp — they come from
-    aiida-dlpoly's own optional ``mcp`` extra (see tests/test_mcp.py in that
-    repository), which this environment does not install. aiida-mlip is also not
-    installed here: its dependency tree is large, and the mlip test suite already
-    covers its glue logic via fake modules (see tests/test_mlip_submit.py). Neither
-    plugin's tools are expected here as a result.
+    DL_POLY and ChemShell tools are no longer bundled with aiida-mcp — they come from
+    aiida-dlpoly's and aiida-chemshell's own optional ``mcp`` extras (see each
+    repository's tests/test_mcp.py), which this environment does not install. aiida-mlip
+    is also not installed here: its dependency tree is large, and the mlip test suite
+    already covers its glue logic via fake modules (see tests/test_mlip_submit.py).
+    None of these plugins' tools are expected here as a result — only the core,
+    always-present tools are.
     """
     names = {tool.name for tool in asyncio.run(server.mcp.list_tools())}
     assert names == {
@@ -33,8 +35,6 @@ def test_all_tools_are_registered():
         "get_aiidalab_status",
         "list_profiles",
         "rescan_plugins",
-        "describe_chemshell_calcjob",
-        "submit_chemshell_job",
     }
 
 
@@ -54,16 +54,20 @@ def test_rescan_plugins_reports_no_new_plugins_when_nothing_changed():
 
 def test_rescan_plugins_detects_a_plugin_that_is_newly_available(monkeypatch):
     """rescan_plugins reports and registers a plugin that has since become available."""
+    module, _ = fake_plugin_module()
+    monkeypatch.setattr(
+        plugins, "entry_points", lambda group: [fake_entry_point("fake", module)]
+    )
     monkeypatch.setattr(
         server,
         "_registered_plugins",
-        [name for name in server._registered_plugins if "chemshell" not in name],
+        [name for name in server._registered_plugins if name != "fake"],
     )
 
     result = server.rescan_plugins()
 
-    assert "chemshell" in result["newly_registered"]
-    assert "chemshell" in result["available"]
+    assert "fake" in result["newly_registered"]
+    assert "fake" in result["available"]
 
 
 def test_rescan_plugins_clears_the_entry_point_cache():

@@ -33,17 +33,17 @@ Most calcjob plugins are an optional extra, installed only when you need their t
 
 .. code-block:: bash
 
-    pip install -e ".[chemshell]"       # ChemShell tools (installs aiida-chemshell)
     pip install -e ".[mlip]"            # MLIP tools (installs aiida-mlip)
     pip install -e ".[aiidalab]"        # AiiDAlab detection (installs jupyter-server)
     pip install -e ".[test]"            # pytest, for running the tests
 
-DL_POLY tools are not an aiida-mcp extra: install ``aiida-dlpoly`` with its own ``mcp`` extra instead, and
-aiida-mcp discovers it automatically:
+DL_POLY and ChemShell tools are not aiida-mcp extras: install ``aiida-dlpoly``/``aiida-chemshell`` with
+their own ``mcp`` extra instead, and aiida-mcp discovers them automatically:
 
 .. code-block:: bash
 
     pip install "aiida-dlpoly[mcp]"
+    pip install "aiida-chemshell[mcp]"
 
 A plugin's tools are only registered if its package is installed; without it, the server runs normally
 and the plugin's tools are simply absent. Check the install with:
