@@ -25,6 +25,8 @@ def _computer_summary(computer: orm.Computer) -> dict[str, Any]:
         "scheduler": computer.scheduler_type,
         "transport": computer.transport_type,
         "description": computer.description,
+        "default_mpiprocs_per_machine": computer.get_default_mpiprocs_per_machine(),
+        "mpirun_command": " ".join(computer.get_mpirun_command()),
     }
 
 
@@ -39,6 +41,7 @@ def _code_summary(
         "description": code.description,
         "default_calc_job_plugin": code.default_calc_job_plugin,
         "computer": computer.label if computer is not None else None,
+        "with_mpi": code.with_mpi,
     }
 
 

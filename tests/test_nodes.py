@@ -38,6 +38,17 @@ def test_list_computers_includes_localhost(localhost):
     assert result["total"] == len(result["computers"])
 
 
+def test_list_computers_reports_mpi_defaults(localhost):
+    """list_computers includes the computer's default MPI settings."""
+    localhost.set_default_mpiprocs_per_machine(4)
+    localhost.set_mpirun_command(["mpirun", "-np", "{tot_num_mpiprocs}"])
+
+    result = nodes.list_computers()
+    entry = next(c for c in result["computers"] if c["label"] == localhost.label)
+    assert entry["default_mpiprocs_per_machine"] == 4
+    assert entry["mpirun_command"] == "mpirun -np {tot_num_mpiprocs}"
+
+
 def test_list_codes_returns_stored_code(code):
     """list_codes returns a stored code with its details."""
     result = nodes.list_codes(limit=50)
@@ -46,6 +57,22 @@ def test_list_codes_returns_stored_code(code):
     entry = next(c for c in result["codes"] if c["label"] == "addcode")
     assert entry["default_calc_job_plugin"] == "core.arithmetic.add"
     assert entry["computer"] == code.computer.label
+    assert entry["with_mpi"] is None
+
+
+def test_list_codes_reports_with_mpi(localhost):
+    """list_codes includes a code's own with_mpi setting."""
+    mpi_code = orm.InstalledCode(
+        label="mpicode",
+        computer=localhost,
+        filepath_executable="/bin/true",
+        default_calc_job_plugin="core.arithmetic.add",
+        with_mpi=True,
+    ).store()
+
+    result = nodes.list_codes(limit=50)
+    entry = next(c for c in result["codes"] if c["label"] == mpi_code.label)
+    assert entry["with_mpi"] is True
 
 
 def test_list_codes_filters_by_computer(code, localhost):
