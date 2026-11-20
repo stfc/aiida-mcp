@@ -82,12 +82,43 @@ def build_node(
     if kind == "parameters":
         return orm.Dict(value)
 
+    return load_existing_node(value, name, accepted)
+
+
+def load_existing_node(
+    pk: int, name: str, accepted: tuple[type[orm.Node], ...]
+) -> orm.Node:
+    """Load a stored node by PK, checking it is one of the accepted types.
+
+    For inputs that can only ever reference an existing node (e.g. a
+    `FolderData` retrieved by some other calculation), rather than be built
+    fresh from a path or text.
+
+    Parameters
+    ----------
+    pk : int
+        Primary key of the node to load.
+    name : str
+        Name of the input, used in error messages.
+    accepted : tuple[type[orm.Node], ...]
+        Node types accepted.
+
+    Returns
+    -------
+    orm.Node
+        The loaded node.
+
+    Raises
+    ------
+    ToolError
+        If no node has the given PK, or its type is not in `accepted`.
+    """
     try:
-        node = orm.load_node(value)
+        node = orm.load_node(pk)
     except NotExistent as exc:
-        raise ToolError(f"{name}: no node with pk {value}") from exc
+        raise ToolError(f"{name}: no node with pk {pk}") from exc
     if not isinstance(node, accepted):
         expected = ", ".join(cls.__name__ for cls in accepted)
         got = type(node).__name__
-        raise ToolError(f"{name}: node {value} is a {got}, expected {expected}")
+        raise ToolError(f"{name}: node {pk} is a {got}, expected {expected}")
     return node

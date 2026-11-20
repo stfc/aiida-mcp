@@ -10,7 +10,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from aiida_mcp import plugins
-from aiida_mcp.plugins import calcjob
+from aiida_mcp.plugins import calcjob, workflow
 
 
 def _tool_names(server: MCPServer) -> set[str]:
@@ -27,6 +27,18 @@ def test_submit_calcjob_unknown_plugin():
     """Submitting to an uninstalled plugin is a ToolError."""
     with pytest.raises(ToolError, match="not installed"):
         calcjob.submit_calcjob("no-such-plugin", {})
+
+
+def test_describe_unknown_workflow_is_tool_error():
+    """Describing an uninstalled workflow is a ToolError."""
+    with pytest.raises(ToolError, match="not installed"):
+        workflow.describe_workflow("no-such-workflow")
+
+
+def test_submit_workflow_unknown_plugin():
+    """Submitting to an uninstalled workflow is a ToolError."""
+    with pytest.raises(ToolError, match="not installed"):
+        workflow.submit_workflow("no-such-workflow", {})
 
 
 def test_register_all_registers_installed_plugins():

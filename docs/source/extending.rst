@@ -50,7 +50,7 @@ bodies of the functions that need it, so the module (and the rest of the server)
 Shared helpers
 ----------------
 
-Two existing modules do most of the work for you; use them rather than re-implementing their logic.
+A few existing modules do most of the work for you; use them rather than re-implementing their logic.
 
 :mod:`aiida_mcp.plugins.calcjob`
     - :func:`~aiida_mcp.plugins.calcjob.calcjob_available` — check an entry point is installed.
@@ -63,6 +63,31 @@ Two existing modules do most of the work for you; use them rather than re-implem
     - :func:`~aiida_mcp.plugins.calcjob.load_code` — load a code by label or PK, raising a ``ToolError``
       with a clear message if it does not exist or is ambiguous.
 
+:mod:`aiida_mcp.plugins.workflow`
+    The ``WorkChain`` equivalent of ``calcjob``, for plugins whose user-facing process is a workflow
+    rather than a bare calcjob (e.g. ``aiida-cif2j``'s ``WannierTB2JWorkChain``).
+
+    - :func:`~aiida_mcp.plugins.workflow.workflow_available` — check an ``aiida.workflows`` entry point
+      is installed.
+    - :func:`~aiida_mcp.plugins.workflow.describe_workflow` — describe a workflow's plugin-specific
+      outputs and exit codes. Deliberately does **not** describe inputs: WorkChains commonly build their
+      input namespace via ``spec.expose_inputs(...)`` from other processes, producing deeply nested
+      ``PortNamespace`` inputs that a flat, generic listing would misrepresent. The workflow's own
+      ``submit_*`` tool and its hand-written docstring are the authoritative description of what it
+      accepts.
+    - :func:`~aiida_mcp.plugins.workflow.submit_workflow` — the ``WorkChain`` equivalent of
+      ``submit_calcjob``: validate a dict of inputs against the workflow spec, store any unstored
+      :class:`~aiida.orm.Data` inputs (including ones nested inside a namespace dict, e.g. from
+      ``spec.expose_inputs(OtherProcess, namespace="other")``), and submit. Use this when the WorkChain's
+      inputs are plain/namespaced data, the same shape you'd pass directly to ``submit``/``run`` — as
+      ``aiida-chemshell``'s ``GeometryOptimisationWorkChain`` is.
+
+    Not every WorkChain fits that shape: if its real entry point is a bespoke
+    ``get_builder_from_protocol``-style classmethod that does its own input assembly and validation (as
+    ``aiida-cif2j``'s ``WannierTB2JWorkChain`` does), wrap that directly instead — build a
+    :class:`~aiida.engine.ProcessBuilder` and submit it — rather than forcing it through
+    ``submit_workflow``.
+
 :mod:`aiida_mcp.plugins.inputs`
     - :class:`~aiida_mcp.plugins.inputs.FileInput` — a pydantic model for "give exactly one of ``path``
       (on the machine running the server), ``text``, or ``pk`` (of an existing node)".
@@ -71,11 +96,15 @@ Two existing modules do most of the work for you; use them rather than re-implem
     - :func:`~aiida_mcp.plugins.inputs.build_node` — turn a ``FileInput``/``ControlInput`` into an
       unstored node (from ``path``/``text``/``parameters``) or load an existing one (from ``pk``),
       checking it is one of the accepted types.
+    - :func:`~aiida_mcp.plugins.inputs.load_existing_node` — load a stored node by PK, checking its type,
+      for inputs that can only ever reference an existing node (e.g. a ``FolderData`` retrieved by some
+      other calculation) rather than be built fresh from a path or text. ``build_node``'s own ``pk``
+      branch is implemented in terms of this.
 
-Use these for any input that naturally comes from a file, text, or an existing node. If the underlying
-AiiDA plugin already ships its own loading helpers with equivalent behaviour (as ``aiida-mlip`` does —
-see `When the plugin has its own loaders`_ below), prefer those instead of ``FileInput``/``build_node``,
-so you don't duplicate logic the plugin's own maintainers keep in sync with their calcjob.
+Use ``FileInput``/``build_node`` for any input that naturally comes from a file, text, or an existing
+node. If the underlying AiiDA plugin already ships its own loading helpers with equivalent behaviour (as
+``aiida-mlip`` does — see `When the plugin has its own loaders`_ below), prefer those instead, so you
+don't duplicate logic the plugin's own maintainers keep in sync with their calcjob.
 
 Worked example: a single calcjob
 -----------------------------------
